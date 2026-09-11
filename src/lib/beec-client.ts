@@ -54,6 +54,16 @@ export interface ReportEstimate {
   estimatedGrade?: string;
   gradeDistribution?: Record<string, number>;
   lowSample?: boolean;
+  /** `estimatedGrade` without the suffix. */
+  gradeCode?: string;
+  /** 그룹(용도·지역·규모) 인증값의 중앙값, kWh/m²·yr — 시뮬레이터의 `baseEnergy`. */
+  primaryEnergyKwh?: number | null;
+  /** 보정 전 그룹 대표값 (= `primaryEnergyKwh`). */
+  baseEnergyKwh?: number | null;
+  /** 사용자 입력(준공연도·난방·창호)으로 보정한 값. 입력이 없으면 `baseEnergyKwh`와 같다. */
+  adjustedEnergyKwh?: number | null;
+  scopeLabel?: string;
+  confidence?: ApartmentConfidence;
 }
 
 /** Building size bucket `/api/report` groups by — matches the Java backend's `sizeBucket` values. */
@@ -241,6 +251,55 @@ export interface ApartmentMeasured {
   source: string;
 }
 
+/** 이 단지의 단열기준 시기에 대해 모델을 믿어도 되는지 — `ModelService.Gate`를 화면용으로 풀어 쓴 묶음. */
+export interface ApartmentModelGate {
+  policy: "point" | "range" | "refuse";
+  /** 교차검증 표본 수. */
+  validationSamples?: number;
+  /** 교차검증 평균 절대오차, kWh/m²·yr. */
+  mae?: number | null;
+  reason: string;
+  basis?: string;
+}
+
+/** 같은 조건 또래 단지 — 모델이 무엇을 보고 판단했는지 사람이 납득하는 보조 근거. */
+export interface ApartmentPeers {
+  level: string;
+  label: string;
+  count: number;
+  median: number;
+  iqr: number;
+}
+
+export interface ApartmentBuilderInfo {
+  name: string | null;
+  certifiedComplexes: number;
+  effect: string;
+}
+
+/** 준공연도로 정해지는 적용 단열기준과, 같은 시기 서울 아파트의 인증 비율. */
+export interface ApartmentInsulationEra {
+  name: string;
+  basis: string;
+  seoulTotal: number;
+  seoulCertified: number;
+  certifiedPct: number;
+  note: string;
+}
+
+/** `Confidence.java` — 표본 수·분포 집중도·입력 충실도로 매긴 추정 신뢰도. */
+export interface ApartmentConfidence {
+  score: number;
+  /** `"높음"` / `"보통"` / `"낮음"`. */
+  level: string;
+  sampleCount: number;
+  topGradeShare: number;
+  userInputs: number;
+  maxUserInputs: number;
+  reasons: string[];
+  disclaimer: string;
+}
+
 /** 또래 기반 추정 — 신뢰도 게이트(`ModelService`)를 통과했을 때만 채워진다. */
 export interface ApartmentEstimate {
   /** `"point"`면 등급 하나로 말해도 됨, `"range"`면 범위로만. */
@@ -256,6 +315,11 @@ export interface ApartmentEstimate {
   grade: string | null;
   presentation: string;
   disclaimer: string;
+  model?: ApartmentModelGate;
+  modelMethod?: string | null;
+  modelFeatures?: string[];
+  peers?: ApartmentPeers;
+  builder?: ApartmentBuilderInfo;
 }
 
 export interface ApartmentDetail {
@@ -266,11 +330,18 @@ export interface ApartmentDetail {
   lat?: number;
   lng?: number;
   facts?: ApartmentFacts;
+  insulationEra?: ApartmentInsulationEra;
   /** 인증 실적이 없으면 `null`. */
   measured?: ApartmentMeasured | null;
   /** 신뢰도 게이트를 통과 못 했으면 `null` — `estimateSkipped`에 이유가 담긴다. */
   estimate?: ApartmentEstimate | null;
   estimateSkipped?: string;
+  /** 추정을 냈을 때만 — 또래 표본으로 계산한 신뢰도. */
+  confidence?: ApartmentConfidence;
+  /** 추정을 거절했을 때만 — 거절한 시기의 검증 결과. */
+  modelGate?: ApartmentModelGate;
+  /** 추정을 거절했을 때 대신 보여줄 문장들. */
+  whatWeCanSay?: { points: string[]; nextStep: string };
 }
 
 /** `/api/apt/{aptCode}` — facts(확실)/measured(실측)/estimate(추정, null일 수 있음) 세 덩어리를 절대 섞지 않고 돌려준다. */

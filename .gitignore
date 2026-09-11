@@ -54,3 +54,4 @@ desktop.ini
 # Claude Code 로컬 설정·작업 트리
 .claude/settings.local.json
 .claude/worktrees/
+next-env.d.ts
