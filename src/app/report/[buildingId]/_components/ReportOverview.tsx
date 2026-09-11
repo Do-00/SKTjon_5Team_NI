@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { EnergyGradeBadge } from "@/src/components/domain/EnergyGradeBadge";
 import { getGradeColorVars, getGradeOnColor } from "@/src/components/domain/grade-tokens";
 import { SectionHeader } from "@/src/components/layout/SectionHeader";
-import { ButtonLink, Card, Icon, Tab, TabList, TabPanel, Tabs } from "@/src/components/ui";
+import { Badge, ButtonLink, Card, Icon, Tab, TabList, TabPanel, Tabs } from "@/src/components/ui";
 import type { IconName } from "@/src/components/ui";
-import type { GradeCode } from "@/src/data/grades";
-import { formatManwon, formatPercent, formatTonsCO2 } from "@/src/lib/format";
+import { PRIMARY_ENERGY_UNIT, type GradeCode } from "@/src/data/grades";
+import { formatManwon, formatNumber, formatPercent, formatTonsCO2 } from "@/src/lib/format";
+import { useWhatIfProjection } from "../_lib/use-what-if-projection";
 import { ReportActions } from "./ReportActions";
+
+/** Basis rows this projection can override once beec returns an "개선 후" result — see `page.tsx`'s `buildLiveBasisRows`. */
+const PROJECTABLE_BASIS_LABELS = new Set(["에너지 등급", "1차에너지소요량"]);
 
 export interface BasisRow {
   icon: IconName;
@@ -23,7 +28,7 @@ export interface ReportMetrics {
   annualSavingsPotentialManwon: number;
 }
 
-interface ReportOverviewProps {
+export interface ReportOverviewProps {
   buildingId: string;
   buildingName: string;
   /** e.g. `"1998년 준공 · 공동주택 · 84㎡"`. */
@@ -62,9 +67,14 @@ export function ReportOverview({
   basisRows,
   metrics,
 }: ReportOverviewProps) {
+  const [view, setView] = useState<"now" | "after">("now");
+  const { selectedCount, result: projection } = useWhatIfProjection(buildingId, primaryEnergyKwh, useType, grade);
+  const showingProjection = view === "after" && projection !== null;
+  const displayGrade = showingProjection ? projection.projectedGrade : grade;
+
   const accentStyle = {
-    "--tab-accent": `var(${getGradeColorVars(grade).color})`,
-    "--tab-accent-fg": getGradeOnColor(grade),
+    "--tab-accent": `var(${getGradeColorVars(displayGrade).color})`,
+    "--tab-accent-fg": getGradeOnColor(displayGrade),
   } as CSSProperties;
 
   const metricCards: { icon: IconName; label: string; value: string }[] = metrics
@@ -75,9 +85,18 @@ export function ReportOverview({
       ]
     : [];
 
+  const displayBasisRows = showingProjection
+    ? basisRows.map((row) => {
+        if (!PROJECTABLE_BASIS_LABELS.has(row.label)) return row;
+        if (row.label === "에너지 등급") return { ...row, value: `${projection.projectedGrade}등급` };
+        return { ...row, value: `${formatNumber(projection.projectedPrimaryEnergyKwh)} ${PRIMARY_ENERGY_UNIT}` };
+      })
+    : basisRows;
+
   return (
     <Tabs
-      defaultValue="now"
+      value={view}
+      onValueChange={(next) => setView(next as "now" | "after")}
       className="grid grid-cols-1 items-start gap-[var(--space-6)] lg:grid-cols-[420px_minmax(0,1fr)]"
     >
       <Card padding="lg" className="flex flex-col items-center gap-[var(--space-6)]" style={accentStyle}>
@@ -87,7 +106,11 @@ export function ReportOverview({
           <p className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">{address}</p>
         </div>
 
-        <EnergyGradeBadge grade={grade} size="lg" caption={isEstimated ? "추정 등급" : "인증 등급"} />
+        <EnergyGradeBadge
+          grade={displayGrade}
+          size="lg"
+          caption={showingProjection ? "개선 후 예상 등급" : isEstimated ? "추정 등급" : "인증 등급"}
+        />
 
         {metrics ? (
           <TabList aria-label="성적표 시점 선택" className="w-full">
@@ -138,32 +161,72 @@ export function ReportOverview({
             </TabPanel>
 
             <TabPanel value="after" className="focus:outline-none">
-              <Card tone="brand" padding="lg" className="flex flex-col gap-[var(--space-3)]">
-                <h2 className="eco-subhead text-[var(--teal-800)]">개선 후 수치는 실천 항목을 고른 뒤 계산돼요</h2>
-                <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
-                  현재 데이터만으로는 개선 후 등급과 난방비를 확정할 수 없어요. 권장 조치를 모두 실천하면 연간 최대{" "}
-                  <strong className="text-[var(--teal-700)]">
-                    {formatManwon(metrics.annualSavingsPotentialManwon)}
-                  </strong>
-                  을 줄일 수 있어요.
-                </p>
-                <ButtonLink
-                  href={`/guide/${buildingId}`}
-                  variant="primary"
-                  className="self-start"
-                  trailingIcon={<Icon name="arrow-right" size={20} />}
-                >
-                  절감 하기에서 실천 항목 고르기
-                </ButtonLink>
-              </Card>
+              {projection ? (
+                <Card tone="brand" padding="lg" className="flex flex-col gap-[var(--space-3)]">
+                  <div className="flex items-center justify-between gap-[var(--space-2)]">
+                    <h2 className="eco-subhead text-[var(--teal-800)]">
+                      절감 하기에서 고른 {selectedCount}개 항목 적용 시
+                    </h2>
+                    <Badge tone="good">실시간 계산</Badge>
+                  </div>
+                  <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
+                    1차에너지소요량 {formatNumber(projection.currentPrimaryEnergyKwh)} →{" "}
+                    {formatNumber(projection.projectedPrimaryEnergyKwh)} {PRIMARY_ENERGY_UNIT} (▼
+                    {projection.reductionPercent}%)
+                  </p>
+                  <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
+                    적용 후 예상 등급{" "}
+                    <strong className="text-[var(--teal-700)]">{projection.projectedGrade}등급</strong>
+                    {" · "}
+                    예상 절감액 월{" "}
+                    <strong className="text-[var(--teal-700)]">
+                      {formatManwon(projection.totalMonthlySavingsManwon)}
+                    </strong>
+                  </p>
+                  <p className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
+                    실제 등급({grade}등급)을 기준으로, 선택한 조치의 예상 절감 효과만큼 등급을 추정한 값이에요.
+                  </p>
+                  <ButtonLink
+                    href={`/guide/${buildingId}`}
+                    variant="outline"
+                    className="self-start"
+                    trailingIcon={<Icon name="arrow-right" size={20} />}
+                  >
+                    절감 하기에서 항목 더 고르기
+                  </ButtonLink>
+                </Card>
+              ) : (
+                <Card tone="brand" padding="lg" className="flex flex-col gap-[var(--space-3)]">
+                  <h2 className="eco-subhead text-[var(--teal-800)]">개선 후 수치는 실천 항목을 고른 뒤 계산돼요</h2>
+                  <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
+                    현재 데이터만으로는 개선 후 등급과 난방비를 확정할 수 없어요. 권장 조치를 모두 실천하면 연간 최대{" "}
+                    <strong className="text-[var(--teal-700)]">
+                      {formatManwon(metrics.annualSavingsPotentialManwon)}
+                    </strong>
+                    을 줄일 수 있어요.
+                  </p>
+                  <ButtonLink
+                    href={`/guide/${buildingId}`}
+                    variant="primary"
+                    className="self-start"
+                    trailingIcon={<Icon name="arrow-right" size={20} />}
+                  >
+                    절감 하기에서 실천 항목 고르기
+                  </ButtonLink>
+                </Card>
+              )}
             </TabPanel>
           </>
         ) : null}
 
         <Card padding="lg">
-          <SectionHeader as="h2" title={metrics ? "추정 근거" : "건물 정보"} hint="공공 데이터 기반" />
+          <SectionHeader
+            as="h2"
+            title={metrics ? "추정 근거" : "건물 정보"}
+            hint={showingProjection ? "개선 후 예상치" : "공공 데이터 기반"}
+          />
           <dl className="mt-[var(--space-5)] grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-4)] md:grid-cols-2">
-            {basisRows.map((row) => (
+            {displayBasisRows.map((row) => (
               <div
                 key={row.label}
                 className="flex min-h-12 items-center gap-[var(--space-3)] border-b border-[var(--border-subtle)] pb-[var(--space-2)]"
@@ -176,6 +239,12 @@ export function ReportOverview({
               </div>
             ))}
           </dl>
+          {metrics && view === "after" && !projection ? (
+            <p className="mt-[var(--space-4)] text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
+              위 값은 현재 기준 데이터예요 — 개선 후 예상 등급·수치는 절감 하기에서 실천 항목을 고르면 확인할 수
+              있어요.
+            </p>
+          ) : null}
         </Card>
       </div>
     </Tabs>

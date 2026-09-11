@@ -1,28 +1,47 @@
 import { GRADE_ORDER, type GradeCode } from "../data/grades";
+import { API_BASE_URL } from "./api-base-url";
 
 /**
  * Client for the real `beec` Spring Boot backend (see `/beec` at the repo
  * root — run it with `./mvnw spring-boot:run`, defaults to port 8080).
  *
  * `matchAddress`/`estimateReport` run server-side only (Server Components,
- * route handlers), so the base URL is a plain server env var, not
- * `NEXT_PUBLIC_`. The constants and `toGradeCode` below have no Node
- * dependencies and are safe to import from Client Components too.
+ * route handlers). They use `NEXT_PUBLIC_API_BASE_URL` like the browser-side
+ * calls in `eco-api.ts`, unless the server-only `BEEC_API_BASE_URL` overrides
+ * it. The constants and `toGradeCode` below have no Node dependencies and are
+ * safe to import from Client Components too.
  */
 
-const BEEC_API_BASE_URL = process.env.BEEC_API_BASE_URL ?? "http://localhost:8080";
+const BEEC_API_BASE_URL = process.env.BEEC_API_BASE_URL ?? API_BASE_URL;
 
 export interface MatchResult {
   found: boolean;
   /** Building/site name, e.g. `"서울시 서초동1692-6 업무시설"`. Present only when `found`. */
   name?: string;
-  /** Grade label with the `"등급"` suffix, e.g. `"1+등급"`. Present only when `found`. */
-  grade?: string;
-  /** Annual primary energy consumption, kWh/m²·yr. Present only when `found`. */
-  energyValue?: number;
+  /**
+   * 현행 기준표(`GradeTable.java`)로 `energyValue` 에서 계산한 등급 라벨,
+   * e.g. `"1+등급"`. `/api/simulate` 의 `gradeBefore` 와 같은 기준입니다.
+   * 에너지 값이 없는 기록이면 `null`.
+   */
+  grade?: string | null;
+  /** `grade` without the suffix, e.g. `"1+"`. `null` when `grade` is null. */
+  gradeCode?: string | null;
+  /**
+   * 인증서에 실제로 적혀 있는 등급. 인증서는 발급 당시 고시 기준이라
+   * `grade` 와 다를 수 있습니다. 화면에는 "인증서 기준" 으로 따로 적어 주세요.
+   */
+  certGrade?: string | null;
+  /** `certGrade` without the `"등급"` suffix. */
+  certGradeCode?: string | null;
+  /** Annual primary energy consumption, kWh/m²·yr. `null` when the record has none. */
+  energyValue?: number | null;
+  /** Same value as `energyValue`, named for the what-if simulator's `baseEnergy`. */
+  primaryEnergyKwh?: number | null;
   /** `"주거용"` or `"주거용 이외"`. Present only when `found`. */
   purpose?: string;
   region?: string;
+  /** 시군구, e.g. `"마포구"`. */
+  district?: string;
   /** `"본인증"`, `"예비인증"`, or empty when the record has no certification. */
   certKind?: string;
 }
@@ -80,7 +99,7 @@ export const REGION_OPTIONS: readonly string[] = [
 ];
 
 /** beec grade labels carry a `"등급"` suffix (`"1+등급"`); `GradeCode` doesn't. */
-export function toGradeCode(label: string | undefined): GradeCode | null {
+export function toGradeCode(label: string | null | undefined): GradeCode | null {
   return GRADE_ORDER.find((code) => `${code}등급` === label) ?? null;
 }
 
@@ -97,9 +116,15 @@ async function beecGet<T>(path: string, params: Record<string, string>): Promise
   return res.json() as Promise<T>;
 }
 
-/** Looks up a building by address against beec's 동+번지 실측 데이터 (`/api/match`). */
-export async function matchAddress(address: string): Promise<MatchResult> {
-  return beecGet<MatchResult>("/api/match", { roadAddress: address });
+/**
+ * Looks up a building by address against beec's 동+번지 실측 데이터 (`/api/match`).
+ * `buildingName` narrows lots with several buildings, same as the home page's browser-side call.
+ */
+export async function matchAddress(address: string, buildingName?: string): Promise<MatchResult> {
+  return beecGet<MatchResult>("/api/match", {
+    roadAddress: address,
+    ...(buildingName ? { buildingName } : {}),
+  });
 }
 
 /** Estimates a grade from 용도/지역/규모 alone, for addresses `matchAddress` can't find (`/api/report`). */
@@ -109,4 +134,48 @@ export async function estimateReport(
   sizeBucket: SizeBucket,
 ): Promise<ReportEstimate> {
   return beecGet<ReportEstimate>("/api/report", { purpose, region, sizeBucket });
+}
+
+export interface SimulateStep {
+  code: string;
+  title: string;
+  reductionPct: number;
+  from: number;
+  to: number;
+}
+
+export interface SimulateResult {
+  found: boolean;
+  message?: string;
+  purpose?: string;
+  baseEnergy?: number;
+  energy?: number;
+  unit?: string;
+  savedEnergy?: number;
+  savedPct?: number;
+  /** Grade code without the `"등급"` suffix (unlike `MatchResult`/`ReportEstimate`) — matches `GradeCode` directly. */
+  gradeCodeBefore?: string;
+  gradeBefore?: string;
+  gradeCode?: string;
+  grade?: string;
+  gradeUp?: number;
+  applied?: string[];
+  steps?: SimulateStep[];
+}
+
+/**
+ * What-if 시뮬레이터 (`/api/simulate`): applies `measureCodes` (beec's 6
+ * improvement measures — see `Measure.java`, e.g. `"WIN"`, `"WAL"`) to
+ * `baseEnergy` multiplicatively and returns the resulting grade/energy.
+ */
+export async function simulateWhatIf(
+  baseEnergy: number,
+  measureCodes: string[],
+  purpose: string,
+): Promise<SimulateResult> {
+  return beecGet<SimulateResult>("/api/simulate", {
+    baseEnergy: String(baseEnergy),
+    measures: measureCodes.join(","),
+    purpose,
+  });
 }

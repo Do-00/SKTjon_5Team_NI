@@ -4,3 +4,9 @@ node_modules/
 .env.*.local
 .DS_Store
 __pycashe__/
+
+.idea/
+
+.next/
+node_modules/
+.env*.local

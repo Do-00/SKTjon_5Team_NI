@@ -12,6 +12,10 @@ import { useCallback, useSyncExternalStore } from "react";
  * snapshot is always the empty object, so there's no hydration mismatch, and
  * the real value is picked up as soon as React re-renders on the client —
  * no synchronous `setState` inside an effect body.
+ *
+ * Shared between `/guide/[buildingId]` (writes completion state) and
+ * `/report/[buildingId]` (reads it read-only to project "개선 후" numbers) —
+ * moved out of `guide`'s route-local `_lib` since it's no longer guide-only.
  */
 
 const EMPTY_COMPLETED: Record<string, boolean> = {};

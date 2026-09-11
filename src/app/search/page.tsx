@@ -5,6 +5,7 @@ import { EnergyGradeBadge } from "@/src/components/domain";
 import { searchBuildings } from "@/src/data/buildings";
 import { formatDistance, formatNumber } from "@/src/lib/format";
 import { EstimateFallbackForm } from "./_components/EstimateFallbackForm";
+import { RememberSearch } from "./_components/RememberSearch";
 import { SearchBar } from "./_components/SearchBar";
 
 export const metadata = {
@@ -54,6 +55,8 @@ export default async function SearchPage(props: PageProps<"/search">) {
         />
 
         <SearchBar defaultValue={query ?? ""} submitLabel="검색" className="max-w-2xl" />
+
+        {hasQuery ? <RememberSearch query={query} /> : null}
 
         {hasQuery ? (
           <p role="status" className="text-[length:var(--text-label-size)] font-medium text-[var(--text-muted)]">

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -23,6 +24,20 @@ public class SeedDataService {
     // "완전히 같은 키"끼리만 비교하니 문자열 부분포함으로 인한 오매칭도 사라진다.
     private Map<String, List<BuildingRecord>> buildingsByDongJibunKey;
 
+    /** 용도별 동네 통계. 비주거용을 걷어낸 뒤라 사실상 주거용 한 벌입니다. */
+    private Map<String, Map<String, DistrictInfo>> districtByPurpose;
+
+    /**
+     * 걷어내기 **전**의 전체 동네 목록.
+     *
+     * 지도는 아파트 인증이 한 건도 없는 동네도 회색 점으로 찍어야 합니다.
+     * 비주거용을 지운 뒤의 목록만 들고 있으면 그런 동네가 지도에서 통째로 사라지고,
+     * 그러면 "인증 사각지대" 라는 우리 논점이 그림에서 없어집니다.
+     * 통계는 아파트만 쓰되, 찍을 자리는 전국 전체를 기억해 둡니다.
+     */
+    private Map<String, DistrictInfo> districtUniverse;
+
+
     public SeedDataService(JsonMapper jsonMapper) {
         this.jsonMapper = jsonMapper;
     }
@@ -32,6 +47,40 @@ public class SeedDataService {
         try (InputStream is = new ClassPathResource("seed.json").getInputStream()) {
             seedData = jsonMapper.readValue(is, SeedData.class);
         }
+
+        // seed.json 의 region 오류를 여기서 바로잡고 districtGroups 를 다시 만듭니다.
+        // 파일은 건드리지 않습니다. 자세한 내용은 RegionFixer 주석 참고.
+        RegionFixer.Result fix = RegionFixer.apply(seedData.getBuildings(), seedData.getDistrictGroups());
+        System.out.println("[RegionFixer] region 보정 " + fix.corrected() + "건"
+                + " (주소 " + fix.byAddress() + " · 시군구사전 " + fix.byLookup() + " · 기존유지 " + fix.kept() + ")"
+                + " / districtGroups " + fix.districtGroups() + "개 재생성");
+        // 걷어내기 전에 전국 동네 목록을 먼저 붙잡아 둡니다 (지도의 회색 점 자리).
+        districtUniverse = new LinkedHashMap<>(seedData.getDistrictGroups());
+
+        // ── 비주거용 제거 ────────────────────────────────────────────────
+        //
+        // 업무시설·판매시설을 아파트와 같은 통계에 섞으면 "유사한 건물" 이라는 말의 근거가
+        // 사라집니다. 등급 구간표부터 다르고(주거용 60/90/120 vs 비주거용 80/140/200),
+        // 국토부 실사용량 데이터도 주거용 위주로만 공개됩니다.
+        // 엔드포인트에서 걸러내는 대신 여기서 통째로 지웁니다. 그래야 그룹·동네 통계가
+        // 처음부터 아파트만으로 다시 계산되고, 어딘가에서 섞인 값이 새어 나올 구멍이 없습니다.
+        //
+        // seed.json 파일 자체는 건드리지 않습니다. 메모리에 올린 목록만 줄입니다.
+        int before = seedData.getBuildings().size();
+        List<BuildingRecord> apartments = seedData.getBuildings().stream()
+                .filter(b -> ReportController.isApartment(b.getPurpose()))
+                .collect(Collectors.toList());
+        seedData.setBuildings(apartments);
+        System.out.println("[Scope] 아파트 한정 — 전체 " + before + "건 중 주거용 "
+                + apartments.size() + "건 유지, " + (before - apartments.size()) + "건 제외");
+
+        districtByPurpose = RegionFixer.buildByPurpose(seedData.getBuildings());
+        System.out.println("[RegionFixer] 동네 통계 — 아파트 "
+                + districtByPurpose.getOrDefault("주거용", Map.of()).size() + "개 동네"
+                + " / 지도에 찍을 전국 동네 " + districtUniverse.size() + "개");
+
+        int groupCount = RegionFixer.rebuildGroups(seedData.getBuildings(), seedData.getGroups());
+        System.out.println("[RegionFixer] groups " + groupCount + "개 재생성 (아파트 · 보정된 시도 기준)");
 
         buildingsByDongJibunKey = new HashMap<>();
         for (BuildingRecord b : seedData.getBuildings()) {
@@ -96,6 +145,37 @@ public class SeedDataService {
 
     public DistrictInfo findDistrictGroup(String district) {
         return seedData.getDistrictGroups().get(district);
+    }
+
+    /**
+     * 용도를 지정한 동네 조회.
+     * purpose 가 null·빈 값·"전체" 면 용도를 섞은 값을 돌려주므로 기존 findDistrictGroup 과 같습니다.
+     */
+    public DistrictInfo findDistrictGroup(String district, String purpose) {
+        return districtGroupsOf(purpose).get(district);
+    }
+
+    /**
+     * 지도에 찍을 전국 동네 목록 — 비주거용을 걷어내기 **전** 기준입니다.
+     *
+     * 아파트 인증이 한 건도 없는 동네까지 포함합니다. 통계값(등급)은 없지만 좌표는 있어야
+     * 회색 점으로 찍히고, 전국 지도에서 수도권만 진하고 지방이 비어 보이는 그림이 완성됩니다.
+     * 그 그림이 이 서비스의 논점입니다.
+     */
+    public Map<String, DistrictInfo> allDistrictGroups() {
+        return districtUniverse != null ? districtUniverse : seedData.getDistrictGroups();
+    }
+
+    /**
+     * 용도별 동네 통계.
+     * purpose 가 null 이거나 "전체" 면 용도를 섞은 것을 돌려줍니다.
+     * "비주거용" 으로 들어와도 실제 키인 "주거용 이외" 로 바꿔 찾습니다.
+     */
+    public Map<String, DistrictInfo> districtGroupsOf(String purpose) {
+        if (districtByPurpose == null) return seedData.getDistrictGroups();
+        String p = (purpose == null || purpose.isBlank()) ? "전체" : normalizePurpose(purpose);
+        Map<String, DistrictInfo> hit = districtByPurpose.get(p);
+        return hit != null ? hit : districtByPurpose.getOrDefault("전체", seedData.getDistrictGroups());
     }
 
     /**

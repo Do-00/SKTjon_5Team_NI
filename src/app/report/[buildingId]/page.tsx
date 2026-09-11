@@ -1,22 +1,35 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
-import { Badge, ButtonLink, Card, Icon, Notice } from "@/src/components/ui";
-import { AiEnergyComment, GradeScale } from "@/src/components/domain";
-import { getBuildingById, type BuildingSummary } from "@/src/data/buildings";
+import { Card, Notice } from "@/src/components/ui";
+import { GradeScale } from "@/src/components/domain";
+import { DistrictMap } from "@/src/components/domain/DistrictMap";
+import districtCoords from "@/src/data/district-coords.json";
+import { getBuildingById, type BuildingSummary, type LiveMatchInfo } from "@/src/data/buildings";
 import { getEcoCheckReport } from "@/src/data/account";
-import { formatManwon, formatNumber } from "@/src/lib/format";
-import { ReportOverview, type BasisRow } from "./_components/ReportOverview";
+import { PRIMARY_ENERGY_UNIT } from "@/src/data/grades";
+import { formatNumber } from "@/src/lib/format";
+import { getDistrict } from "@/src/lib/audience";
+import { HEATING_TYPE_OPTIONS, readApartmentChecklistParams } from "@/src/lib/apartment-checklist";
+import type { BasisRow } from "./_components/ReportOverview";
+import { ReportBody } from "./_components/ReportBody";
+
+/** `?bn=` carries the Kakao 건물명 on older links whose id doesn't have it packed in. */
+function readBuildingName(raw: string | string[] | undefined): string | undefined {
+  const value = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  return value ? value : undefined;
+}
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps<"/report/[buildingId]">): Promise<Metadata> {
   const { buildingId } = await params;
-  const building = await getBuildingById(buildingId);
+  const building = await getBuildingById(buildingId, readBuildingName((await searchParams).bn));
   return { title: building ? `${building.name} 에너지 성적표` : "건물을 찾을 수 없어요" };
 }
 
-/** Rows for the "추정 근거" card, all sourced from the building fixture. */
+/** Rows for the "추정 근거" card, sourced from the building fixture (placeholders for estimates). */
 function buildBasisRows(building: BuildingSummary): BasisRow[] {
   const latestCert = building.certificationHistory.at(-1);
   return [
@@ -33,46 +46,123 @@ function buildBasisRows(building: BuildingSummary): BasisRow[] {
   ];
 }
 
-/**
- * Server shell for a building's energy report. The detailed report figures
- * (`getEcoCheckReport`) are fixtures scoped to a single building, so they
- * only render when the requested building matches the report's
- * `buildingId` — other valid buildings get a clearly labelled "상세 성적표
- * 준비 중" prototype state instead of borrowed numbers.
- */
-export default async function ReportPage({ params }: PageProps<"/report/[buildingId]">) {
-  const { buildingId } = await params;
+/** Rows for a live beec match — only what `/api/match` returned, no placeholders. */
+function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
+  const rows: BasisRow[] = [
+    { icon: "map-pin", label: "지역", value: [live.region, live.district].filter(Boolean).join(" ") || "정보 없음" },
+    { icon: "building", label: "용도", value: live.purpose || "정보 없음" },
+    { icon: "gauge", label: "에너지 등급", value: live.gradeLabel || "정보 없음" },
+    {
+      icon: "trending-down",
+      label: "1차에너지소요량",
+      value: live.energyValue === null ? "정보 없음" : `${formatNumber(live.energyValue)} ${PRIMARY_ENERGY_UNIT}`,
+    },
+  ];
 
-  const building = await getBuildingById(buildingId);
+  // 인증서 등급은 발급 당시 고시 기준입니다. 위에 보이는 등급은 현행 기준표로 다시
+  // 계산한 값이라 서로 다를 수 있고, 다를 때만 따로 적어 줍니다.
+  if (live.certGradeLabel && live.certGradeLabel !== live.gradeLabel) {
+    rows.push({
+      icon: "key",
+      label: "인증서 기재 등급",
+      value: `${live.certGradeLabel} (발급 당시 기준)`,
+    });
+  }
+
+  rows.push({ icon: "badge-check", label: "인증 구분", value: live.certKind || "인증 이력 없음" });
+  return rows;
+}
+
+/** Rows for the "직접 입력한 집 정보" card — from the home hero's apartment checklist, via query params. */
+function buildChecklistRows(checklist: NonNullable<ReturnType<typeof readApartmentChecklistParams>>): BasisRow[] {
+  const rows: BasisRow[] = [];
+  if (checklist.completionYear !== null) {
+    rows.push({ icon: "calendar", label: "준공연도", value: `${checklist.completionYear}년` });
+  }
+  if (checklist.builder) {
+    rows.push({ icon: "building", label: "건설사", value: checklist.builder });
+  }
+  if (checklist.heatingType) {
+    const option = HEATING_TYPE_OPTIONS.find((candidate) => candidate.value === checklist.heatingType);
+    rows.push({ icon: "thermometer", label: "난방 방식", value: option?.label ?? checklist.heatingType });
+  }
+  return rows;
+}
+
+/**
+ * Server shell for a building's energy report. Fixture buildings render
+ * their fixture figures; live beec matches (`addr-…` ids from the home or
+ * `/search`) render the `/api/match` fields; estimates (`est-…` ids from
+ * `/search`'s 등급 추정 form) render the same "추정 근거" card as a fixture.
+ * `ReportBody` fetches heating-cost figures in the browser for both live
+ * matches and estimates (MSW mock, or the same example table without it).
+ */
+export default async function ReportPage({ params, searchParams }: PageProps<"/report/[buildingId]">) {
+  const { buildingId } = await params;
+  const resolvedSearchParams = await searchParams;
+
+  const building = await getBuildingById(buildingId, readBuildingName(resolvedSearchParams.bn));
   if (!building) {
     notFound();
   }
 
+  const checklist = readApartmentChecklistParams(resolvedSearchParams);
   const report = await getEcoCheckReport();
   const hasFullReport = building.id === report.buildingId;
   const isEstimated = building.gradeSource === "estimated";
+  const live = building.liveMatch;
+  const estimate = building.estimate;
+
+  // 지도에서 강조할 동네. 실측 매칭이면 beec 가 준 값을, 아니면 주소에서 뽑습니다.
+  const selectedDistrict = live?.district ?? getDistrict(building.address);
+  // 비주거용 건물이면 비주거용끼리 비교해야 등급 기준표가 맞습니다.
+  const comparePurpose = live?.purpose === "주거용 이외" ? "주거용 이외" : "주거용";
+
+  const metaLine = live
+    ? [[live.region, live.district].filter(Boolean).join(" "), live.purpose].filter(Boolean).join(" · ")
+    : estimate
+      ? [estimate.region, estimate.purpose, estimate.sizeLabel].join(" · ")
+      : `${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`;
 
   return (
     <SiteShell>
       <PageSection className="flex flex-col gap-[var(--space-6)]">
-        {isEstimated ? (
+        {estimate ? (
+          <Notice tone="warn">
+            이 주소는 에너지효율등급 실측 데이터가 없습니다. 아래 등급은 같은 용도·지역·규모 건물{" "}
+            {formatNumber(estimate.sampleCount)}건의 통계로 추정한 값입니다.
+            {estimate.lowSample ? " 표본이 적어 참고용으로만 봐 주세요." : ""}
+          </Notice>
+        ) : isEstimated ? (
           <Notice tone="warn">
             이 건물은 에너지효율등급 인증 이력이 없습니다. 아래 등급은 공공 데이터 기반 추정치입니다.
           </Notice>
         ) : null}
 
-        <ReportOverview
-          buildingId={building.id}
-          buildingName={building.name}
-          metaLine={`${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`}
-          address={building.address}
-          completionYear={building.completionYear}
-          useType={building.useType}
-          primaryEnergyKwh={building.primaryEnergyKwh}
-          grade={building.grade}
-          isEstimated={isEstimated}
-          basisRows={buildBasisRows(building)}
-          metrics={
+        <ReportBody
+          overview={{
+            buildingId: building.id,
+            buildingName: building.name,
+            metaLine,
+            address: building.address,
+            completionYear: building.completionYear,
+            useType: building.useType,
+            primaryEnergyKwh: building.primaryEnergyKwh,
+            grade: building.grade,
+            isEstimated,
+            basisRows: live ? buildLiveBasisRows(live) : buildBasisRows(building),
+          }}
+          comment={{
+            buildingName: building.name,
+            address: building.address,
+            completionYear: building.completionYear,
+            useType: building.useType,
+            areaSqm: building.areaSqm,
+            grade: building.grade,
+            isEstimated,
+            primaryEnergyKwh: building.primaryEnergyKwh,
+          }}
+          initialMetrics={
             hasFullReport
               ? {
                   annualEnergyCostManwon: report.annualEnergyCostManwon,
@@ -82,79 +172,48 @@ export default async function ReportPage({ params }: PageProps<"/report/[buildin
                 }
               : null
           }
-        />
+          fetchLiveMetrics={live !== undefined || estimate !== undefined}
+        >
+          {checklist ? (
+            <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
+              <SectionHeader
+                title="직접 입력한 집 정보"
+                hint="주소 검색 때 입력해 주신 내용이에요. 아직 등급 계산에는 반영되지 않아요."
+                hintSize="sm"
+              />
+              <dl className="grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-3)] sm:grid-cols-3">
+                {buildChecklistRows(checklist).map((row) => (
+                  <div key={row.label} className="flex flex-col gap-[2px]">
+                    <dt className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">{row.label}</dt>
+                    <dd className="text-[17px] font-bold text-[var(--text-strong)]">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          ) : null}
 
-        <AiEnergyComment
-          buildingName={building.name}
-          address={building.address}
-          completionYear={building.completionYear}
-          useType={building.useType}
-          areaSqm={building.areaSqm}
-          grade={building.grade}
-          isEstimated={isEstimated}
-          primaryEnergyKwh={building.primaryEnergyKwh}
-          metrics={
-            hasFullReport
-              ? {
-                  annualEnergyCostManwon: report.annualEnergyCostManwon,
-                  percentileRank: report.percentileRank,
-                  annualCarbonEmissionTons: report.annualCarbonEmissionTons,
-                  annualSavingsPotentialManwon: report.annualSavingsPotentialManwon,
-                }
-              : null
-          }
-        />
-
-        <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
-          <SectionHeader
-            title="등급 기준표"
-            hint="다른 등급을 누르면 연간 단위면적당 1차에너지소요량을 볼 수 있습니다."
-            hintSize="sm"
-          />
-          <GradeScale value={building.grade} selectable />
-        </Card>
-
-        {hasFullReport ? (
-          <Card
-            tone="brand"
-            padding="lg"
-            className="flex flex-col items-start gap-[var(--space-5)] sm:flex-row sm:items-center"
-          >
-            <Icon name="coins" size={36} className="shrink-0 text-[var(--teal-700)]" />
-            <div className="flex-1">
-              <p className="text-[17px] text-[var(--teal-800)]">권장 조치를 모두 실천하면 연간</p>
-              <p className="font-brand text-[34px] font-black leading-tight text-[var(--teal-700)]">
-                {formatManwon(report.annualSavingsPotentialManwon)} 절감
-              </p>
-            </div>
-            <ButtonLink
-              href={`/guide/${building.id}`}
-              size="lg"
-              trailingIcon={<Icon name="arrow-right" size={22} />}
-            >
-              절감 하기 보기
-            </ButtonLink>
+          <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
+            <SectionHeader
+              title="등급 기준표"
+              hint="다른 등급을 누르면 연간 단위면적당 1차에너지소요량을 볼 수 있습니다."
+              hintSize="sm"
+            />
+            <GradeScale value={building.grade} selectable />
           </Card>
-        ) : (
-          <Card tone="sunken" padding="lg" className="flex flex-col items-start gap-[var(--space-4)]">
-            <Badge tone="brand">프로토타입 안내</Badge>
-            <div className="flex flex-col gap-[var(--space-2)]">
-              <h2 className="eco-heading">이 건물의 상세 성적표는 준비 중이에요</h2>
-              <p className="max-w-[var(--width-reading)] text-[length:var(--text-body-size)] text-[var(--text-muted)]">
-                현재 프로토타입에는 이 건물의 난방비·탄소 배출·주변 비교 데이터가 아직 연결되지 않았어요. 등급과 건물
-                특성은 위에서 확인할 수 있고, 절감 하기는 바로 이용할 수 있어요.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-[var(--space-3)]">
-              <ButtonLink href={`/guide/${building.id}`} variant="primary">
-                절감 하기 보기
-              </ButtonLink>
-              <ButtonLink href="/search" variant="ghost">
-                다른 건물 검색하기
-              </ButtonLink>
-            </div>
+
+          <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
+            <SectionHeader
+              title="동네 비교"
+              hint="같은 용도 건물의 인증 실적을 지역끼리 비교합니다. 회색은 인증 사례가 부족해 등급을 매기지 않은 지역입니다."
+              hintSize="sm"
+            />
+            <DistrictMap
+              coords={districtCoords.districts}
+              selected={selectedDistrict}
+              purpose={comparePurpose}
+            />
           </Card>
-        )}
+        </ReportBody>
       </PageSection>
     </SiteShell>
   );

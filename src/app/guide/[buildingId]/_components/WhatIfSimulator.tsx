@@ -1,22 +1,24 @@
 "use client";
 
-import { Badge, Card, Icon } from "@/src/components/ui";
+import { Badge, ButtonLink, Card, Icon } from "@/src/components/ui";
 import { EnergyGradeBadge } from "@/src/components/domain";
 import type { WhatIfResult } from "@/src/lib/what-if";
 import { formatManwon, formatNumber } from "@/src/lib/format";
 
 export interface WhatIfSimulatorProps {
+  buildingId: string;
   result: WhatIfResult;
   selectedCount: number;
 }
 
 /**
  * What-if 시뮬레이터 카드: 체크한 실천 항목을 적용하면 등급/1차에너지소요량이
- * 어떻게 바뀌는지 보여준다. 팀 진행표의 `/simulate`(항목별 곱셈) 백엔드가
- * 아직 이 저장소에 없어서, 지금은 `src/lib/what-if.ts`의 로컬 추정치를
- * 쓴다 — "데모용 추정치" 배지로 그 사실을 분명히 표시한다.
+ * 어떻게 바뀌는지 보여준다. beec의 실제 `/api/simulate`가 응답하면 그 값을
+ * 쓰고("실시간 계산" 배지), beec를 못 부르거나 체크한 항목이 beec의 6개
+ * measure에 하나도 안 걸리면 `src/lib/what-if.ts`의 로컬 추정치로 대체한다
+ * ("데모용 추정치" 배지로 구분).
  */
-export function WhatIfSimulator({ result, selectedCount }: WhatIfSimulatorProps) {
+export function WhatIfSimulator({ buildingId, result, selectedCount }: WhatIfSimulatorProps) {
   const {
     currentGrade,
     projectedGrade,
@@ -24,6 +26,7 @@ export function WhatIfSimulator({ result, selectedCount }: WhatIfSimulatorProps)
     projectedPrimaryEnergyKwh,
     reductionPercent,
     totalMonthlySavingsManwon,
+    source,
   } = result;
   const improved = selectedCount > 0 && projectedGrade !== currentGrade;
 
@@ -34,7 +37,11 @@ export function WhatIfSimulator({ result, selectedCount }: WhatIfSimulatorProps)
           <Icon name="gauge" size={22} className="text-[var(--teal-700)]" />
           <h2 className="eco-heading">What-if 시뮬레이터</h2>
         </div>
-        <Badge tone="caution">데모용 추정치</Badge>
+        {selectedCount > 0 ? (
+          <Badge tone={source === "beec" ? "good" : "caution"}>
+            {source === "beec" ? "실시간 계산" : "데모용 추정치"}
+          </Badge>
+        ) : null}
       </div>
 
       {selectedCount === 0 ? (
@@ -63,6 +70,15 @@ export function WhatIfSimulator({ result, selectedCount }: WhatIfSimulatorProps)
           <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
             예상 절감액 월 <strong className="text-[var(--teal-700)]">{formatManwon(totalMonthlySavingsManwon)}</strong>
           </p>
+
+          <ButtonLink
+            href={`/report/${buildingId}`}
+            variant="outline"
+            className="self-start"
+            trailingIcon={<Icon name="arrow-right" size={20} />}
+          >
+            성적표에서 확인하기
+          </ButtonLink>
         </>
       )}
     </Card>

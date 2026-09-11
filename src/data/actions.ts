@@ -36,13 +36,20 @@ export interface EcoAction {
   supportEligible: boolean;
   /** IDs of matching programs from `src/data/programs.ts`. Empty when `supportEligible` is `false`. */
   supportProgramIds: string[];
+  /**
+   * beec's `/api/simulate` measure code (see `beec/.../Measure.java`).
+   * Every current action maps to one of beec's 6 real measures; `undefined`
+   * is only for a future action that doesn't (the What-if simulator skips
+   * those when calling the real API).
+   */
+  measureCode?: string;
 }
 
 const ECO_ACTIONS: readonly EcoAction[] = [
   {
     id: "act-001",
-    title: "LED 조명 교체",
-    description: "공용부 및 세대 내 조명을 고효율 LED로 교체해 전력 사용량을 줄입니다.",
+    title: "LED 조명 전환",
+    description: "공용부와 세대 내 조명을 고효율 LED로 교체해 전력 사용량을 줄입니다.",
     category: "조명",
     difficulty: "easy",
     monthlySavingsManwon: 4,
@@ -50,47 +57,70 @@ const ECO_ACTIONS: readonly EcoAction[] = [
     eligibleUserTypes: ["owner", "tenant", "hoa", "general"],
     supportEligible: true,
     supportProgramIds: ["prog-005"],
+    measureCode: "LED",
   },
   {
-    id: "act-002",
-    title: "고효율 보일러 설정 최적화",
-    description: "난방 스케줄과 보일러 설정 온도를 조정해 불필요한 가동을 줄입니다.",
-    category: "난방",
-    difficulty: "easy",
-    monthlySavingsManwon: 7,
-    estimatedCostRangeManwon: { min: 0, max: 10 },
-    eligibleUserTypes: ["owner", "tenant", "hoa"],
-    supportEligible: false,
-    supportProgramIds: [],
-  },
-  {
-    id: "act-003",
-    title: "창호 단열재 시공",
-    description: "노후 창호에 단열 필름과 틈새 마감재를 추가해 열손실을 줄입니다.",
+    // beec Measure.java 의 "지붕·최상층 단열" 그대로.
+    id: "act-006",
+    title: "지붕·최상층 단열",
+    description: "최상층 천장과 지붕 단열을 보강합니다.",
     category: "단열",
     difficulty: "medium",
-    monthlySavingsManwon: 9,
-    estimatedCostRangeManwon: { min: 150, max: 400 },
+    monthlySavingsManwon: 6,
+    estimatedCostRangeManwon: { min: 100, max: 250 },
     eligibleUserTypes: ["owner", "hoa"],
     supportEligible: true,
     supportProgramIds: ["prog-001", "prog-003"],
+    measureCode: "ROF",
   },
   {
-    id: "act-004",
-    title: "옥상 태양광 패널 설치",
-    description: "옥상 유휴 공간에 소규모 태양광 발전 설비를 설치해 자체 전력을 생산합니다.",
-    category: "재생에너지",
-    difficulty: "hard",
-    monthlySavingsManwon: 23,
-    estimatedCostRangeManwon: { min: 800, max: 2000 },
+    // beec 쪽 이름은 "고효율 보일러 교체"(medium, WAL·WIN과 같은 곱셈 계산에 들어감) —
+    // "설정 최적화" 같은 무상 조치가 아니라 실제 교체 공사라 난이도·비용도 그에 맞췄다.
+    id: "act-002",
+    title: "고효율 보일러 교체",
+    description: "노후 보일러를 고효율(콘덴싱 등) 제품으로 교체합니다.",
+    category: "난방",
+    difficulty: "medium",
+    monthlySavingsManwon: 7,
+    estimatedCostRangeManwon: { min: 80, max: 150 },
+    eligibleUserTypes: ["owner", "tenant", "hoa"],
+    supportEligible: false,
+    supportProgramIds: [],
+    measureCode: "BOI",
+  },
+  {
+    // beec Measure.java 의 "열회수 환기장치" 그대로.
+    id: "act-007",
+    title: "열회수 환기장치",
+    description: "환기로 빠져나가는 열을 회수해 난방 부하를 줄입니다.",
+    category: "설비",
+    difficulty: "medium",
+    monthlySavingsManwon: 8,
+    estimatedCostRangeManwon: { min: 150, max: 300 },
     eligibleUserTypes: ["owner", "hoa", "corporation"],
     supportEligible: true,
-    supportProgramIds: ["prog-004"],
+    supportProgramIds: ["prog-005"],
+    measureCode: "HRV",
+  },
+  {
+    // beec 쪽 이름은 "고성능 창호 교체"(hard, 열손실이 가장 큰 부위) —
+    // 필름 시공 같은 경량 보강이 아니라 전체 교체라 난이도·비용도 그에 맞췄다.
+    id: "act-003",
+    title: "고성능 창호 교체",
+    description: "노후 창호를 고단열 창호로 전체 교체해 열손실을 줄입니다.",
+    category: "단열",
+    difficulty: "hard",
+    monthlySavingsManwon: 9,
+    estimatedCostRangeManwon: { min: 300, max: 600 },
+    eligibleUserTypes: ["owner", "hoa"],
+    supportEligible: true,
+    supportProgramIds: ["prog-001", "prog-003"],
+    measureCode: "WIN",
   },
   {
     id: "act-005",
-    title: "건물 외벽 단열 리모델링",
-    description: "외벽 단열재를 전면 보강하는 그린리모델링으로 냉난방 부하를 크게 낮춥니다.",
+    title: "외벽 단열 보강",
+    description: "외벽 단열재를 보강해 냉난방 부하를 크게 낮춥니다.",
     category: "단열",
     difficulty: "hard",
     monthlySavingsManwon: 51,
@@ -98,6 +128,7 @@ const ECO_ACTIONS: readonly EcoAction[] = [
     eligibleUserTypes: ["owner", "hoa", "corporation"],
     supportEligible: true,
     supportProgramIds: ["prog-001", "prog-003", "prog-006"],
+    measureCode: "WAL",
   },
 ];
 

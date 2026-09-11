@@ -1,4 +1,5 @@
-import { CURRENT_BUILDING_GRADE, type GradeCode } from "./grades";
+import { CURRENT_BUILDING_GRADE, GRADE_ORDER, type GradeCode } from "./grades";
+import { decodeAddressId, encodeAddressId } from "../lib/address-id";
 import { matchAddress, toGradeCode, type MatchResult } from "../lib/beec-client";
 
 /**
@@ -46,6 +47,26 @@ export interface BuildingSummary {
   heatingType: string;
   /** Past official certifications, newest first. Empty when `gradeSource` is `"estimated"`. */
   certificationHistory: CertificationRecord[];
+  /** What beec's `/api/match` actually returned, for live matches only (absent on fixtures). */
+  liveMatch?: LiveMatchInfo;
+}
+
+/** Raw `/api/match` fields, so the report shows beec's values instead of the fixture-shaped placeholders. */
+export interface LiveMatchInfo {
+  /** 현행 기준표로 계산한 등급, e.g. `"1+등급"`. 시뮬레이터의 "개선 전" 등급과 같은 값입니다. */
+  gradeLabel: string;
+  /**
+   * 인증서에 적혀 있는 등급. 인증서는 발급 당시 고시 기준이라 `gradeLabel` 과
+   * 다를 수 있습니다 (실제로 약 45%가 다릅니다). 인증 이력이 없으면 빈 문자열.
+   */
+  certGradeLabel: string;
+  /** kWh/m²·yr, or `null` if beec didn't send one. */
+  energyValue: number | null;
+  purpose: string;
+  region: string;
+  district: string;
+  /** `"본인증"`, `"예비인증"`, or `""`. */
+  certKind: string;
 }
 
 export interface SavedBuilding extends BuildingSummary {
@@ -161,24 +182,6 @@ const CANONICAL_QUERY_VARIANTS: readonly string[] = [
   normalizeForComparison(SEARCH_RESULTS[0].address),
 ];
 
-/** Prefix marking a `BuildingSummary.id` as a live beec match rather than a `SEARCH_RESULTS` fixture id. */
-const ADDRESS_ID_PREFIX = "addr-";
-
-/** Packs a searched address into a route-safe `/report/[buildingId]` segment beec can look up again. */
-function encodeAddressId(address: string): string {
-  return `${ADDRESS_ID_PREFIX}${Buffer.from(address, "utf-8").toString("base64url")}`;
-}
-
-/** Unpacks an `encodeAddressId` id back to the original address, or `null` for a fixture id like `"bld-001"`. */
-function decodeAddressId(id: string): string | null {
-  if (!id.startsWith(ADDRESS_ID_PREFIX)) return null;
-  try {
-    return Buffer.from(id.slice(ADDRESS_ID_PREFIX.length), "base64url").toString("utf-8");
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Building-register fields beec's `/api/match` doesn't return (준공연도,
  * 구조, 연면적, 난방방식, 단열기준 — that's the separate 건축HUB integration,
@@ -193,9 +196,37 @@ const PLACEHOLDER_BUILDING_DETAILS = {
   heatingType: "개별 도시가스",
 } as const;
 
-/** Maps a beec `/api/match` hit onto the `BuildingSummary` shape the rest of the app already renders. */
-function toBuildingSummary(address: string, match: MatchResult): BuildingSummary {
-  const grade = toGradeCode(match.grade) ?? CURRENT_BUILDING_GRADE;
+/**
+ * The grade beec's `/api/match` computed for this building, or `null` when it
+ * has no 1차에너지소요량 on record and therefore no grade at all.
+ *
+ * Prefers `gradeCode` (already suffix-free, and — since the 등급 통일 fix —
+ * computed from the **current** 기준표, the same table `/api/simulate` uses)
+ * and falls back to parsing the `"1+등급"` label. Deliberately returns `null`
+ * instead of a placeholder: showing a stand-in grade for a building with no
+ * energy figure is exactly the mismatch the report page was reporting.
+ */
+function resolveGradeCode(match: MatchResult): GradeCode | null {
+  const fromCode = GRADE_ORDER.find((code) => code === match.gradeCode);
+  return fromCode ?? toGradeCode(match.grade);
+}
+
+/** The 1차에너지소요량 beec matched, or `null` when the record carries none. */
+function resolveEnergy(match: MatchResult): number | null {
+  return match.primaryEnergyKwh ?? match.energyValue ?? null;
+}
+
+/**
+ * Maps a beec `/api/match` hit onto the `BuildingSummary` shape the rest of
+ * the app already renders. `grade`/`energy` are resolved by the caller, which
+ * is also what decides a gradeless match isn't a usable result at all.
+ */
+function toBuildingSummary(
+  address: string,
+  match: MatchResult,
+  grade: GradeCode,
+  energy: number,
+): BuildingSummary {
   const isCertified = match.certKind === "본인증" || match.certKind === "예비인증";
 
   return {
@@ -205,20 +236,29 @@ function toBuildingSummary(address: string, match: MatchResult): BuildingSummary
     grade,
     distanceMeters: 0,
     gradeSource: isCertified ? "certified" : "estimated",
-    primaryEnergyKwh: match.energyValue ?? 0,
+    primaryEnergyKwh: energy,
     useType: match.purpose ?? "정보 없음",
     ...PLACEHOLDER_BUILDING_DETAILS,
     certificationHistory: isCertified
       ? [
           {
             grade,
-            primaryEnergyKwh: match.energyValue ?? 0,
+            primaryEnergyKwh: energy,
             certifiedAt: `${PLACEHOLDER_BUILDING_DETAILS.completionYear}-01-01`,
             certId: match.certKind ?? "정보 없음",
             issuer: "한국에너지공단",
           },
         ]
       : [],
+    liveMatch: {
+      gradeLabel: match.grade ?? "",
+      certGradeLabel: match.certGrade ?? "",
+      energyValue: energy,
+      purpose: match.purpose ?? "",
+      region: match.region ?? "",
+      district: match.district ?? "",
+      certKind: match.certKind ?? "",
+    },
   };
 }
 
@@ -257,8 +297,12 @@ export async function searchBuildings(query?: string): Promise<SearchOutcome> {
 
   try {
     const match = await matchAddress(query);
-    return match.found
-      ? { buildings: [toBuildingSummary(query, match)], offerEstimateFallback: false }
+    const grade = match.found ? resolveGradeCode(match) : null;
+    const energy = match.found ? resolveEnergy(match) : null;
+    // 매칭은 됐지만 에너지 값이 없으면 등급도 없습니다. 임의의 값을 채워 넣는 대신
+    // 용도·지역·규모 추정(`/api/report`)으로 넘깁니다 — 그쪽이 바로 이 경우를 위한 화면입니다.
+    return match.found && grade !== null && energy !== null
+      ? { buildings: [toBuildingSummary(query, match, grade, energy)], offerEstimateFallback: false }
       : { buildings: [], offerEstimateFallback: true };
   } catch {
     // beec isn't reachable — fall through to the fixtures below.
@@ -287,15 +331,19 @@ export async function searchBuildings(query?: string): Promise<SearchOutcome> {
  * (`"addr-…"`) re-queries `/api/match` with the address packed inside it —
  * beec has no persistent building ids of its own, only address matching.
  */
-export async function getBuildingById(id: string): Promise<BuildingSummary | undefined> {
+export async function getBuildingById(id: string, buildingName?: string): Promise<BuildingSummary | undefined> {
   const address = decodeAddressId(id);
   if (address === null) {
     return SEARCH_RESULTS.find((building) => building.id === id);
   }
 
   try {
-    const match = await matchAddress(address);
-    return match.found ? toBuildingSummary(address, match) : undefined;
+    const match = await matchAddress(address, buildingName);
+    if (!match.found) return undefined;
+    const grade = resolveGradeCode(match);
+    const energy = resolveEnergy(match);
+    if (grade === null || energy === null) return undefined;
+    return toBuildingSummary(address, match, grade, energy);
   } catch {
     return undefined;
   }
