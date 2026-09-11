@@ -391,7 +391,13 @@ function toApartmentBuildingSummary(detail: ApartmentDetail): BuildingSummary | 
     structureType: "철근콘크리트구조",
     useType: "공동주택(아파트)",
     insulationStandard: facts.insulationEra ?? PLACEHOLDER_BUILDING_DETAILS.insulationStandard,
-    areaSqm: facts.grossFloorArea ?? PLACEHOLDER_BUILDING_DETAILS.areaSqm,
+    // `grossFloorArea`는 단지 전체 연면적(수만~수십만 ㎡)이라 그대로 쓰면 한
+    // 가구가 아니라 단지 전체 규모가 되어 버린다 — 세대수로 나눠 평균 세대
+    // 면적을 근사값으로 쓴다.
+    areaSqm:
+      facts.grossFloorArea && facts.households
+        ? Math.round(facts.grossFloorArea / facts.households)
+        : PLACEHOLDER_BUILDING_DETAILS.areaSqm,
     heatingType: facts.heatingType ?? PLACEHOLDER_BUILDING_DETAILS.heatingType,
     certificationHistory:
       measured && gradeSource === "certified"
