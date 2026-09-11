@@ -86,6 +86,8 @@ export interface RemodelReportResult {
   /** 보고서 본문 — 한 요소가 한 줄. */
   report: string[];
   source: "gemini" | "fallback";
+  /** 폴백일 때 Gemini를 쓰지 못한 이유 — 브라우저 네트워크 탭에서 바로 확인하려고 둔다. 키 값은 담지 않는다. */
+  fallbackReason?: string;
 }
 
 /** 참고 계산값 — Gemini 예측의 기준이자 폴백 수치. */

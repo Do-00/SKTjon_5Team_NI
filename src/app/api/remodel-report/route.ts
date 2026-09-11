@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return NextResponse.json(fallbackRemodelReport(input, reference));
+    return NextResponse.json({ ...fallbackRemodelReport(input, reference), fallbackReason: "GEMINI_API_KEY 없음" });
   }
 
   try {
@@ -85,13 +85,19 @@ export async function POST(request: Request) {
     });
 
     if (!res.ok) {
-      throw new Error(`Gemini API error: ${res.status}`);
+      // Google 쪽 에러 본문에는 키가 들어 있지 않다 — 사유 확인용으로 앞부분만 남긴다.
+      throw new Error(`Gemini API error: ${res.status} ${(await res.text()).slice(0, 200)}`);
     }
 
     const json = await res.json();
-    const text: string | undefined = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // 사고를 켜면 parts 가 여러 조각으로 올 수 있다 — 사고 조각을 빼고 텍스트를 이어 붙인다.
+    const parts: { text?: string; thought?: boolean }[] = json?.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+      .filter((part) => !part.thought && typeof part.text === "string")
+      .map((part) => part.text)
+      .join("");
     if (!text) {
-      throw new Error("Gemini API returned no text");
+      throw new Error(`Gemini API returned no text (finishReason ${json?.candidates?.[0]?.finishReason ?? "?"})`);
     }
 
     const verdict = acceptGeminiRemodelReport(JSON.parse(text), reference);
@@ -101,6 +107,7 @@ export async function POST(request: Request) {
     return NextResponse.json(verdict.result);
   } catch (error) {
     console.error("[api/remodel-report] Gemini call failed, using fallback", error);
-    return NextResponse.json(fallbackRemodelReport(input, reference));
+    const fallbackReason = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ ...fallbackRemodelReport(input, reference), fallbackReason });
   }
 }

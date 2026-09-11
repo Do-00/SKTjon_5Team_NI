@@ -44,8 +44,13 @@ export async function POST(request: Request) {
     }
 
     const json = await res.json();
-    const text: string | undefined = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-    const advice = text?.trim();
+    // 사고를 켜면 parts 가 여러 조각으로 올 수 있다 — 사고 조각을 빼고 텍스트를 이어 붙인다.
+    const parts: { text?: string; thought?: boolean }[] = json?.candidates?.[0]?.content?.parts ?? [];
+    const advice = parts
+      .filter((part) => !part.thought && typeof part.text === "string")
+      .map((part) => part.text)
+      .join("")
+      .trim();
     if (!advice) {
       throw new Error("Gemini API returned no text");
     }

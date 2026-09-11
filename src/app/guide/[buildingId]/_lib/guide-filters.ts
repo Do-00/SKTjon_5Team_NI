@@ -1,4 +1,5 @@
 import type { EcoAction } from "@/src/data/actions";
+import { REMODEL_MEASURES } from "@/src/lib/remodel-report";
 
 /**
  * Route-local filter vocabulary for the guide checklist. Every value here is
@@ -55,6 +56,20 @@ export const DEFAULT_GUIDE_FILTER_STATE: GuideFilterState = {
   budget: "any",
   supportOnly: false,
 };
+
+const REMODEL_ORDER: readonly string[] = REMODEL_MEASURES.map((measure) => measure.code);
+
+/**
+ * 성적표의 AI 리모델링 리포트가 추천한 순서(절감률이 큰 순 — 외벽 → 창호 → 환기 →
+ * 보일러 → 지붕 → LED)로 정렬한다. beec measure 에 걸리지 않는 항목은 맨 뒤.
+ */
+export function sortByRecommendedRemodel(actions: EcoAction[]): EcoAction[] {
+  const rank = (action: EcoAction) => {
+    const index = action.measureCode ? REMODEL_ORDER.indexOf(action.measureCode) : -1;
+    return index === -1 ? REMODEL_ORDER.length : index;
+  };
+  return [...actions].sort((a, b) => rank(a) - rank(b));
+}
 
 /** Applies the owner/tenant, budget, and support-only filters to the full action list. */
 export function filterActions(actions: EcoAction[], filters: GuideFilterState): EcoAction[] {

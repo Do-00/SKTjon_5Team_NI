@@ -14,6 +14,7 @@ import {
   BUDGET_OPTIONS,
   DEFAULT_GUIDE_FILTER_STATE,
   filterActions,
+  sortByRecommendedRemodel,
   type AudienceFilter,
   type BudgetFilter,
   type GuideFilterState,
@@ -44,7 +45,10 @@ export function GuideChecklist({
   const budgetSelectId = useId();
   const progressId = useId();
 
-  const filteredActions = useMemo(() => filterActions(actions, filters), [actions, filters]);
+  const filteredActions = useMemo(
+    () => sortByRecommendedRemodel(filterActions(actions, filters)),
+    [actions, filters],
+  );
   const completedActions = useMemo(
     () => actions.filter((action) => completed[action.id]),
     [actions, completed],
@@ -141,7 +145,7 @@ export function GuideChecklist({
         <WhatIfSimulator buildingId={buildingId} result={whatIfResult} selectedCount={completedCount} />
 
         <div className="flex flex-col gap-[var(--space-2)]">
-          <SectionHeader title="맞춤 절감 하기" hint={`${filteredActions.length}개 조치 · 난이도순`} />
+          <SectionHeader title="맞춤 절감 하기" hint={`${filteredActions.length}개 조치 · 추천 리모델링순`} />
           <p
             id={progressId}
             aria-live="polite"

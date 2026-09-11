@@ -1,8 +1,0 @@
-{
-  "/api/energy-cost/route": "app/api/energy-cost/route.js",
-  "/api/estimate-report/route": "app/api/estimate-report/route.js",
-  "/api/remodel-report/route": "app/api/remodel-report/route.js",
-  "/page": "app/page.js",
-  "/report/[buildingId]/page": "app/report/[buildingId]/page.js",
-  "/search/page": "app/search/page.js"
-}

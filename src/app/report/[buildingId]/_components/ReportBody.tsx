@@ -34,6 +34,8 @@ export interface ReportBodyProps {
 export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics, children }: ReportBodyProps) {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(initialMetrics);
   const [ready, setReady] = useState(!fetchLiveMetrics);
+  // AI 리모델링 리포트의 연간 절감 고정비. `undefined` = 아직 받는 중, `null` = 리포트가 계산하지 못함.
+  const [remodelSavings, setRemodelSavings] = useState<number | null | undefined>(undefined);
   const { grade, primaryEnergyKwh, buildingId } = overview;
 
   useEffect(() => {
@@ -59,7 +61,13 @@ export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics
     <>
       <ReportOverview {...overview} metrics={metrics} />
 
-      {ready ? <AiRemodelReport {...remodel} metrics={metrics} /> : null}
+      {ready ? (
+        <AiRemodelReport
+          {...remodel}
+          metrics={metrics}
+          onResult={(result) => setRemodelSavings(result.data.annualSavingsManwon)}
+        />
+      ) : null}
 
       {children}
 
@@ -72,9 +80,16 @@ export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics
           <Icon name="coins" size={36} className="shrink-0 text-[var(--teal-700)]" />
           <div className="flex-1">
             <p className="text-[17px] text-[var(--teal-800)]">권장 조치를 모두 실천하면 연간</p>
-            <p className="font-brand text-[34px] font-black leading-tight text-[var(--teal-700)]">
-              {formatManwon(metrics.annualSavingsPotentialManwon)} 절감
-            </p>
+            {remodelSavings === undefined ? (
+              <div
+                aria-label="절감액 계산 중"
+                className="mt-[var(--space-1)] h-10 w-40 animate-pulse rounded bg-[var(--teal-100)]"
+              />
+            ) : (
+              <p className="font-brand text-[34px] font-black leading-tight text-[var(--teal-700)]">
+                {formatManwon(remodelSavings ?? metrics.annualSavingsPotentialManwon)} 절감
+              </p>
+            )}
           </div>
           <ButtonLink href={`/guide/${buildingId}`} size="lg" trailingIcon={<Icon name="arrow-right" size={22} />}>
             절감 하기 보기
