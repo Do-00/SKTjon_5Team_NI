@@ -54,9 +54,44 @@ public class SeedDataService {
         return purpose;
     }
 
+    /**
+     * 비교군 조회.
+     *
+     * 정확히 맞는 조합이 없으면 조용히 넓힙니다.
+     *   {용도}|{시도}|{규모}  →  같은 용도·지역에서 표본이 가장 많은 규모  →  같은 용도 전체
+     *
+     * 조합은 170개인데 실제 그룹은 150개라 빈 칸이 있습니다.
+     * 데모 중에 "데이터 없음" 이 뜨는 것을 막는 것이 목적입니다.
+     */
     public GroupInfo findGroup(String purpose, String region, String sizeBucket) {
-        String key = normalizePurpose(purpose) + "|" + region + "|" + sizeBucket;
-        return seedData.getGroups().get(key);
+        String p = normalizePurpose(purpose);
+        Map<String, GroupInfo> gs = seedData.getGroups();
+
+        GroupInfo exact = gs.get(p + "|" + region + "|" + sizeBucket);
+        if (exact != null) return exact;
+
+        GroupInfo best = null;
+        for (Map.Entry<String, GroupInfo> e : gs.entrySet()) {
+            if (!e.getKey().startsWith(p + "|" + region + "|")) continue;
+            if (best == null || e.getValue().getCount() > best.getCount()) best = e.getValue();
+        }
+        if (best != null) return best;
+
+        for (Map.Entry<String, GroupInfo> e : gs.entrySet()) {
+            if (!e.getKey().startsWith(p + "|")) continue;
+            if (best == null || e.getValue().getCount() > best.getCount()) best = e.getValue();
+        }
+        return best;
+    }
+
+    /** 실제로 매칭된 그룹의 키. 화면에 "무엇을 기준으로 계산했는지" 를 띄우는 데 씁니다. */
+    public String findGroupKey(String purpose, String region, String sizeBucket) {
+        GroupInfo hit = findGroup(purpose, region, sizeBucket);
+        if (hit == null) return null;
+        for (Map.Entry<String, GroupInfo> e : seedData.getGroups().entrySet()) {
+            if (e.getValue() == hit) return e.getKey();
+        }
+        return null;
     }
 
     public DistrictInfo findDistrictGroup(String district) {
