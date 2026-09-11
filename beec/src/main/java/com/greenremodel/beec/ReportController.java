@@ -48,10 +48,16 @@ public class ReportController {
     }
 
     // 동네 비교 지도 기능용 - name은 seed.json districtGroups 키(예: "은평구", "마곡지구")와 동일해야 함
+    // purpose 는 선택값입니다. 안 보내면 예전과 100% 같게 동작합니다.
+    //   /api/district?name=서울 강서구                    → 용도 구분 없음 (기존과 동일)
+    //   /api/district?name=서울 강서구&purpose=주거용       → 주거용만
+    //   /api/district?name=서울 강서구&purpose=주거용 이외   → 비주거용만
     @GetMapping("/api/district")
-    public Map<String, Object> getDistrict(@RequestParam String name) {
+    public Map<String, Object> getDistrict(
+            @RequestParam String name,
+            @RequestParam(required = false) String purpose) {
 
-        DistrictInfo info = seedDataService.findDistrictGroup(name);
+        DistrictInfo info = seedDataService.findDistrictGroup(name, purpose);
 
         if (info == null) {
             return Map.of("found", false, "message", "해당 동네 데이터가 없습니다");
@@ -61,6 +67,7 @@ public class ReportController {
         out.put("found", true);
         out.put("name", name);
         out.put("region", info.getRegion());
+        out.put("purpose", (purpose == null || purpose.isBlank()) ? "전체" : purpose);
         out.put("sampleCount", info.getCount());
         out.put("representativeGrade", info.getRepresentativeGrade());
         out.put("gradeDistribution", info.getGradeDistribution());
