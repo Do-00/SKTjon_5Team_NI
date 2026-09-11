@@ -13,7 +13,7 @@ export async function SiteFooter() {
     {
       title: "서비스",
       links: [
-        { label: "에너지 성적표", href: `/report/${primaryBuildingId}` },
+        { label: "에너지 성적표", href: "/search" },
         { label: "절감 하기", href: `/guide/${primaryBuildingId}` },
         { label: "지원사업 매칭", href: "/programs" },
       ],
@@ -22,7 +22,6 @@ export async function SiteFooter() {
       title: "정보",
       links: [
         { label: "추정 방식 안내", href: "/about" },
-        { label: "공공 데이터 출처", href: "/about#data-sources" },
         { label: "문의하기", href: "/support" },
       ],
     },
@@ -34,8 +33,7 @@ export async function SiteFooter() {
         <div>
           <p className="mb-[10px] font-brand text-[24px] font-black text-white">에코 체크</p>
           <p className="max-w-[340px] text-[16px] leading-[1.7] text-[var(--teal-300)]">
-            미인증 사각지대 건축물의 에너지 등급을 추정하고, 사용자 유형별 절감 방법과 정부 지원사업을 매칭하는
-            탄소중립 의사결정 플랫폼입니다.
+            우리 집 에너지 등급부터 절감 방법, 지원사업까지 — 에코 체크 하나로 다 확인하세요.
           </p>
         </div>
 

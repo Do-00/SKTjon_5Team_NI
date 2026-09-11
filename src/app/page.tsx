@@ -2,10 +2,8 @@ import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { ButtonLink, Card, Icon } from "@/src/components/ui";
 import type { IconName } from "@/src/components/ui";
 import { GradeScale, ProgramCard } from "@/src/components/domain";
-import { getEcoCheckReport, getUserAccount } from "@/src/data/account";
-import { getBuildingById } from "@/src/data/buildings";
+import { getEcoCheckReport } from "@/src/data/account";
 import { getSupportPrograms } from "@/src/data/programs";
-import { describeAudience } from "@/src/lib/audience";
 import { HomeHero } from "./_components/HomeHero";
 
 interface Step {
@@ -33,13 +31,7 @@ const STEPS: Step[] = [
 ];
 
 export default async function Home() {
-  const [account, report, programs] = await Promise.all([
-    getUserAccount(),
-    getEcoCheckReport(),
-    getSupportPrograms(),
-  ]);
-  const building = await getBuildingById(report.buildingId);
-  const address = building?.address ?? report.buildingName;
+  const [report, programs] = await Promise.all([getEcoCheckReport(), getSupportPrograms()]);
   const matchedPrograms = programs.filter((program) => program.matched).slice(0, 2);
 
   return (
@@ -48,7 +40,7 @@ export default async function Home() {
 
       {/* Three steps */}
       <PageSection aria-labelledby="home-steps-title">
-        <SectionHeader id="home-steps-title" title="세 단계로 끝납니다" hint="가입 없이 조회할 수 있습니다" />
+        <SectionHeader id="home-steps-title" title="세 단계로 끝납니다" />
         <ol className="mt-[var(--space-5)] grid grid-cols-1 gap-[var(--space-5)] md:grid-cols-3">
           {STEPS.map((step, index) => (
             <li key={step.title}>
@@ -87,11 +79,7 @@ export default async function Home() {
 
       {/* Matched programs */}
       <PageSection aria-labelledby="home-programs-title">
-        <SectionHeader
-          id="home-programs-title"
-          title="지금 신청 가능한 지원사업"
-          hint={describeAudience(address, account.userType)}
-        />
+        <SectionHeader id="home-programs-title" title="지금 신청 가능한 지원사업" />
         <div className="mt-[var(--space-5)] grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-2">
           {matchedPrograms.map((program) => (
             <ProgramCard key={program.id} program={program} href="/programs?tag=matched" />

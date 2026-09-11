@@ -4,16 +4,28 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Icon } from "@/src/components/ui";
 import { encodeAddressId } from "@/src/lib/address-id";
-import { withApartmentChecklistParams, type ApartmentChecklistAnswers } from "@/src/lib/apartment-checklist";
+import {
+  withApartmentChecklistParams,
+  type ApartmentChecklistAnswers,
+} from "@/src/lib/apartment-checklist";
 import { matchPostcodeAddress, toJibunAddress } from "@/src/lib/eco-api";
-import { toSelectedAddress, type KakaoPostcodeData } from "@/src/lib/kakao-postcode";
+import {
+  toSelectedAddress,
+  type KakaoPostcodeData,
+} from "@/src/lib/kakao-postcode";
 import { rememberLastSearch, searchHref } from "@/src/lib/last-search";
 import { AddressSearchBar } from "./AddressSearchBar";
 
 type LookupStatus = "idle" | "loading" | "error";
 
 /** Same footprint as `EnergyGradeBadge size="lg"`, in neutral grey, for "no grade yet". */
-function UnknownGradeBadge({ caption, pulsing = false }: { caption: string; pulsing?: boolean }) {
+function UnknownGradeBadge({
+  caption,
+  pulsing = false,
+}: {
+  caption: string;
+  pulsing?: boolean;
+}) {
   return (
     <span className="inline-flex shrink-0 flex-col items-center gap-[var(--space-2)]">
       <span
@@ -50,7 +62,10 @@ export function HomeHero() {
 
   const address = picked ? toSelectedAddress(picked) : "";
 
-  async function handleSelect(data: KakaoPostcodeData, checklist: ApartmentChecklistAnswers) {
+  async function handleSelect(
+    data: KakaoPostcodeData,
+    checklist: ApartmentChecklistAnswers,
+  ) {
     const requestId = ++latestRequest.current;
     setPicked(data);
     setStatus("loading");
@@ -66,10 +81,17 @@ export function HomeHero() {
         // The 건물명 rides inside the id, so the report and the guide resolve the same building on multi-building lots.
         // 체크리스트 답변(준공연도·건설사·난방방식)은 쿼리스트링으로 실어 보낸다 —
         // beec가 아직 이 값들을 못 받아서, 성적표 페이지가 참고용으로만 보여준다.
-        router.push(withApartmentChecklistParams(`/report/${encodeAddressId(jibunAddress, data.buildingName)}`, checklist));
+        router.push(
+          withApartmentChecklistParams(
+            `/report/${encodeAddressId(jibunAddress, data.buildingName)}`,
+            checklist,
+          ),
+        );
       } else {
         // 아파트 API는 지번을 모르고 이름/도로명으로만 찾으니, 건물명·도로명도 같이 넘긴다.
-        router.push(searchHref(jibunAddress, data.buildingName, data.roadAddress));
+        router.push(
+          searchHref(jibunAddress, data.buildingName, data.roadAddress),
+        );
       }
     } catch {
       if (requestId === latestRequest.current) setStatus("error");
@@ -77,12 +99,15 @@ export function HomeHero() {
   }
 
   return (
-    <section aria-labelledby="home-hero-title" className="bg-[var(--surface-brand)]">
+    <section
+      aria-labelledby="home-hero-title"
+      className="bg-[var(--surface-brand)]"
+    >
       <div className="eco-container grid items-center gap-[var(--space-12)] py-[var(--space-16)] lg:grid-cols-[1.1fr_0.9fr] lg:gap-[var(--space-16)] lg:py-[var(--space-20)]">
         <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
           <span className="inline-flex items-center gap-1.5 self-start whitespace-nowrap rounded-[var(--radius-pill)] bg-[var(--teal-100)] px-4 py-2 text-[16px] font-bold text-[var(--teal-800)]">
             <Icon name="leaf" size={16} />
-            탄소중립 의사결정 플랫폼
+            우리집은 몇등급이지?
           </span>
           <h1
             id="home-hero-title"
@@ -93,9 +118,14 @@ export function HomeHero() {
             우리 집 에너지 성적표
           </h1>
           <p className="max-w-[520px] text-[19px] leading-[1.65] text-[var(--teal-100)] md:text-[21px]">
-            인증 이력이 없는 건물도 공공 데이터로 등급을 추정하고, 맞춤 지원사업까지 연결해 드려요.
+            인증 이력이 없는 건물도 공공 데이터로 등급을 추정하고, ㅤ맞춤
+            지원사업까지 연결해 드려요.
           </p>
-          <AddressSearchBar value={address} onSelect={handleSelect} className="max-w-[620px]" />
+          <AddressSearchBar
+            value={address}
+            onSelect={handleSelect}
+            className="max-w-[620px]"
+          />
         </div>
 
         <div className="flex justify-center">
@@ -105,26 +135,41 @@ export function HomeHero() {
             aria-busy={status === "loading"}
             className="flex w-full max-w-[380px] flex-col items-center gap-[var(--space-5)]"
           >
-            <p className="flex w-full items-center justify-center gap-[var(--space-2)] rounded-[var(--radius-md)] bg-[var(--surface-sunken)] px-[var(--space-4)] py-[var(--space-3)] text-center text-[17px] break-keep text-[var(--text-muted)]">
-              <Icon name="map-pin" size={18} />
-              {picked ? address : "주소를 입력하면 에너지 등급을 알려 드려요"}
-            </p>
-            <UnknownGradeBadge caption={CAPTIONS[status]} pulsing={status === "loading"} />
+            <div className="flex w-full items-center gap-[var(--space-3)] rounded-[var(--radius-md)] bg-[var(--surface-sunken)] px-[var(--space-4)] py-[var(--space-3)]">
+              <span
+                aria-hidden="true"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-brand-soft)] text-[var(--teal-700)]"
+              >
+                <Icon name="map-pin" size={18} />
+              </span>
+              <p className="text-left text-[17px] leading-[1.4] break-keep text-[var(--text-muted)]">
+                {picked ? (
+                  address
+                ) : (
+                  <>
+                    주소를 입력하면
+                    <br />
+                    에너지 등급을 알려 드려요
+                  </>
+                )}
+              </p>
+            </div>
+            <UnknownGradeBadge
+              caption={CAPTIONS[status]}
+              pulsing={status === "loading"}
+            />
             {status === "error" ? (
-              <p role="alert" className="text-center text-[15px] leading-[1.6] break-keep text-[var(--status-danger)]">
-                등급 서버에 연결하지 못했어요. 백엔드가 켜져 있는지 확인한 뒤 다시 검색해 주세요.
+              <p
+                role="alert"
+                className="text-center text-[15px] leading-[1.6] break-keep text-[var(--status-danger)]"
+              >
+                등급 서버에 연결하지 못했어요. 백엔드가 켜져 있는지 확인한 뒤
+                다시 검색해 주세요.
               </p>
             ) : null}
-            <dl className="flex w-full justify-between border-t border-[var(--border-subtle)] pt-[var(--space-4)]">
-              <div>
-                <dt className="text-[15px] text-[var(--text-muted)]">연간 난방비</dt>
-                <dd className="font-brand text-[24px] font-black text-[var(--ink-300)]">?</dd>
-              </div>
-              <div>
-                <dt className="text-[15px] text-[var(--text-muted)]">절감 여지</dt>
-                <dd className="font-brand text-[24px] font-black text-[var(--ink-300)]">?</dd>
-              </div>
-            </dl>
+            <p className="w-full border-t border-[var(--border-subtle)] pt-[var(--space-4)] text-center text-[15px] text-[var(--text-muted)]">
+              가입 없이, 주소만으로 바로 확인할 수 있어요
+            </p>
           </Card>
         </div>
       </div>
