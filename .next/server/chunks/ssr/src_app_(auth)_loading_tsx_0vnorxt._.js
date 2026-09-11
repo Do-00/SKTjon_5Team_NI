@@ -1,3 +1,0 @@
-module.exports=[60517,a=>{"use strict";var b=a.i(7997);a.s(["default",0,function(){return(0,b.jsx)("div",{role:"status","aria-label":"불러오는 중",className:"h-9 w-9 animate-spin rounded-[var(--radius-pill)] border-[var(--border-width-strong)] border-[var(--border-strong)] border-t-[var(--action-primary)]"})}])},58810,function(a){a.n(a.i(60517))}];
-
-//# sourceMappingURL=src_app_%28auth%29_loading_tsx_0vnorxt._.js.map
