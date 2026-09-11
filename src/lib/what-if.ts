@@ -1,17 +1,18 @@
 import { GRADE_ORDER, GRADES, type GradeCode } from "../data/grades";
 import type { EcoAction, EcoActionDifficulty } from "../data/actions";
+import type { SimulateResult } from "./beec-client";
 
 /**
- * What-if 시뮬레이터 계산 — 임시 로컬 버전.
+ * What-if 시뮬레이터 계산.
  *
- * 팀 진행표에 따르면 실제 계산은 beec의 `/simulate`(항목별 곱셈 방식)가
- * 맡을 예정이지만, 아직 이 저장소에는 그 엔드포인트가 없다(git 이력에도
- * 없고 로컬 서버에도 404). 그래서 같은 모양 — 실천 항목마다 감소율을 곱해
- * 나가는 방식 — 으로 프론트를 먼저 만들어 두고, `/simulate`가 준비되면
- * `simulateWhatIf()` 안의 계산만 API 호출로 바꾸면 되도록 분리해 뒀다.
+ * beec의 `/api/simulate`(항목별 곱셈 방식 — see `Measure.java`)가 이제
+ * 실제로 존재하므로 우선 그걸 쓴다(`src/app/api/simulate` 릴레이 경유).
+ * `simulateWhatIfLocally()`는 beec가 꺼져 있거나 체크한 항목이 beec의 6개
+ * measure에 하나도 안 걸릴 때(예: 태양광만 체크)를 위한 폴백으로만 남겨뒀다
+ * — 같은 "항목별 곱셈" 방식이라 두 경로의 숫자가 크게 어긋나지 않는다.
  */
 
-/** 난이도별 1차에너지소요량 감소율(placeholder) — 실제 항목별 배율은 `/simulate`가 대체할 예정. */
+/** 난이도별 1차에너지소요량 감소율(폴백 전용 placeholder) — beec가 응답하면 이 값은 안 쓰인다. */
 const DIFFICULTY_REDUCTION_FACTOR: Record<EcoActionDifficulty, number> = {
   easy: 0.97,
   medium: 0.92,
@@ -26,6 +27,8 @@ export interface WhatIfResult {
   /** 0~100 사이, 선택한 항목들로 줄어드는 1차에너지소요량 비율. */
   reductionPercent: number;
   totalMonthlySavingsManwon: number;
+  /** 이 결과가 beec 실계산인지, beec를 못 불러서 쓴 로컬 추정치인지. */
+  source: "beec" | "local";
 }
 
 function gradeFromPrimaryEnergy(kwh: number): GradeCode {
@@ -37,8 +40,8 @@ function gradeFromPrimaryEnergy(kwh: number): GradeCode {
   );
 }
 
-/** 선택된 실천 항목을 적용했을 때의 예상 1차에너지소요량·등급을 계산한다. */
-export function simulateWhatIf(
+/** 선택된 실천 항목을 적용했을 때의 예상 1차에너지소요량·등급을 계산한다 (beec 없이도 동작하는 폴백). */
+export function simulateWhatIfLocally(
   currentPrimaryEnergyKwh: number,
   currentGrade: GradeCode,
   selectedActions: EcoAction[],
@@ -62,5 +65,44 @@ export function simulateWhatIf(
     projectedPrimaryEnergyKwh,
     reductionPercent: Math.round((1 - factor) * 100),
     totalMonthlySavingsManwon,
+    source: "local",
+  };
+}
+
+const VALID_GRADE_CODES = new Set<string>(GRADE_ORDER);
+
+function isGradeCode(value: string | undefined): value is GradeCode {
+  return value !== undefined && VALID_GRADE_CODES.has(value);
+}
+
+/**
+ * Maps a beec `/api/simulate` response onto `WhatIfResult`. Returns `null`
+ * when the response is missing fields this view needs (e.g. `found:false`,
+ * or a grade code beec returned that isn't one of ours) — the caller should
+ * fall back to `simulateWhatIfLocally` in that case.
+ */
+export function mapSimulateResponse(
+  result: SimulateResult,
+  totalMonthlySavingsManwon: number,
+): WhatIfResult | null {
+  if (
+    !result.found ||
+    result.baseEnergy === undefined ||
+    result.energy === undefined ||
+    result.savedPct === undefined ||
+    !isGradeCode(result.gradeCodeBefore) ||
+    !isGradeCode(result.gradeCode)
+  ) {
+    return null;
+  }
+
+  return {
+    currentGrade: result.gradeCodeBefore,
+    projectedGrade: result.gradeCode,
+    currentPrimaryEnergyKwh: result.baseEnergy,
+    projectedPrimaryEnergyKwh: result.energy,
+    reductionPercent: result.savedPct,
+    totalMonthlySavingsManwon,
+    source: "beec",
   };
 }

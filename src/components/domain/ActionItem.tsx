@@ -29,7 +29,7 @@ const CATEGORY_ICON: Record<string, IconName> = {
   조명: "lightbulb",
   난방: "thermometer",
   단열: "wind",
-  재생에너지: "sun",
+  설비: "gauge",
 };
 
 function getActionIcon(action: EcoAction): IconName {

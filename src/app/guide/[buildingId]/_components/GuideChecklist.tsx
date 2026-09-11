@@ -1,12 +1,13 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { EcoAction } from "@/src/data/actions";
 import type { GradeCode } from "@/src/data/grades";
+import type { SimulateResult } from "@/src/lib/beec-client";
 import { ActionItem } from "@/src/components/domain/ActionItem";
 import { SectionHeader } from "@/src/components/layout/SectionHeader";
 import { ButtonLink, Card, Checkbox, Icon, Notice, RadioGroup, Select } from "@/src/components/ui";
-import { simulateWhatIf } from "@/src/lib/what-if";
+import { mapSimulateResponse, simulateWhatIfLocally, type WhatIfResult } from "@/src/lib/what-if";
 import { useChecklistStorage } from "../_lib/use-checklist-storage";
 import {
   AUDIENCE_OPTIONS,
@@ -49,10 +50,53 @@ export function GuideChecklist({
     [actions, completed],
   );
   const completedCount = completedActions.length;
-  const whatIfResult = useMemo(
-    () => simulateWhatIf(currentPrimaryEnergyKwh, currentGrade, completedActions),
+  const measureCodes = useMemo(
+    () => completedActions.map((action) => action.measureCode).filter((code): code is string => Boolean(code)),
+    [completedActions],
+  );
+  const totalMonthlySavingsManwon = useMemo(
+    () => completedActions.reduce((sum, action) => sum + action.monthlySavingsManwon, 0),
+    [completedActions],
+  );
+  const localResult = useMemo(
+    () => simulateWhatIfLocally(currentPrimaryEnergyKwh, currentGrade, completedActions),
     [currentPrimaryEnergyKwh, currentGrade, completedActions],
   );
+
+  // Only beec's real /api/simulate can tell us the grade impact of the
+  // checked measures — no measureCode selected means nothing to ask it, so
+  // `requestKey` stays null and the local estimate is used untouched.
+  const requestKey = measureCodes.length > 0 ? `${currentPrimaryEnergyKwh}|${measureCodes.join(",")}` : null;
+  const [remote, setRemote] = useState<{ key: string; result: WhatIfResult } | null>(null);
+
+  useEffect(() => {
+    if (requestKey === null) return;
+    let cancelled = false;
+
+    const params = new URLSearchParams({
+      baseEnergy: String(currentPrimaryEnergyKwh),
+      measures: measureCodes.join(","),
+      purpose: "주거용",
+    });
+
+    fetch(`/api/simulate?${params.toString()}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`status ${res.status}`))))
+      .then((data: SimulateResult) => {
+        if (cancelled) return;
+        const mapped = mapSimulateResponse(data, totalMonthlySavingsManwon);
+        if (mapped) setRemote({ key: requestKey, result: mapped });
+      })
+      .catch(() => {
+        // beec unreachable or errored — stay on the local estimate below.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey]);
+
+  const whatIfResult = requestKey !== null && remote?.key === requestKey ? remote.result : localResult;
 
   return (
     <div className="grid grid-cols-1 items-start gap-[var(--space-6)] lg:grid-cols-[360px_minmax(0,1fr)]">
