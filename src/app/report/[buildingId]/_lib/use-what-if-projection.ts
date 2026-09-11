@@ -3,23 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { getEcoActions, type EcoAction } from "@/src/data/actions";
 import type { SimulateResult } from "@/src/lib/beec-client";
-import { useChecklistStorage } from "@/src/lib/checklist-storage";
-import { mapSimulateResponse, toSimulatePurpose, type WhatIfResult } from "@/src/lib/what-if";
+import { mapSimulateResponse, simulateWhatIfLocally, toSimulatePurpose, type WhatIfResult } from "@/src/lib/what-if";
 import type { GradeCode } from "@/src/data/grades";
 
 /**
- * Reads the same 절감 하기 checklist (`useChecklistStorage`, shared
- * localStorage) this building has, and — if anything checked maps to a real
- * beec measure — calls `/api/simulate` so the report page's "개선 후" view
- * can show the actual projected grade/energy instead of a placeholder.
+ * The report page's "개선 후" view: the projected grade/energy with **every**
+ * recommended 절감 action applied (not just the ones checked on the 절감 하기
+ * page). Calls beec's `/api/simulate` with all measure codes, and uses the
+ * local estimate (`simulateWhatIfLocally`) until — or instead of, if beec is
+ * unreachable — that answer arrives, so the tab always has a grade to show.
  */
 export function useWhatIfProjection(
-  buildingId: string,
   primaryEnergyKwh: number,
   useType: string,
   realGrade: GradeCode,
 ) {
-  const { completed } = useChecklistStorage(buildingId);
   const [actions, setActions] = useState<EcoAction[]>([]);
 
   useEffect(() => {
@@ -32,17 +30,17 @@ export function useWhatIfProjection(
     };
   }, []);
 
-  const completedActions = useMemo(
-    () => actions.filter((action) => completed[action.id]),
-    [actions, completed],
-  );
   const measureCodes = useMemo(
-    () => completedActions.map((action) => action.measureCode).filter((code): code is string => Boolean(code)),
-    [completedActions],
+    () => actions.map((action) => action.measureCode).filter((code): code is string => Boolean(code)),
+    [actions],
   );
   const totalMonthlySavingsManwon = useMemo(
-    () => completedActions.reduce((sum, action) => sum + action.monthlySavingsManwon, 0),
-    [completedActions],
+    () => actions.reduce((sum, action) => sum + action.monthlySavingsManwon, 0),
+    [actions],
+  );
+  const localResult = useMemo(
+    () => (actions.length > 0 ? simulateWhatIfLocally(primaryEnergyKwh, realGrade, actions) : null),
+    [actions, primaryEnergyKwh, realGrade],
   );
 
   const requestKey = measureCodes.length > 0 ? `${primaryEnergyKwh}|${measureCodes.join(",")}|${useType}` : null;
@@ -66,7 +64,7 @@ export function useWhatIfProjection(
         if (mapped) setRemote({ key: requestKey, result: mapped });
       })
       .catch(() => {
-        // beec unreachable — the caller falls back to its placeholder copy.
+        // beec unreachable — stay on the local estimate below.
       });
 
     return () => {
@@ -75,10 +73,10 @@ export function useWhatIfProjection(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestKey]);
 
-  const result = requestKey !== null && remote?.key === requestKey ? remote.result : null;
+  const result = requestKey !== null && remote?.key === requestKey ? remote.result : localResult;
 
   return {
-    selectedCount: completedActions.length,
+    actionCount: actions.length,
     result,
   };
 }

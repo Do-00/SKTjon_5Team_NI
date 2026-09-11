@@ -68,7 +68,7 @@ export function ReportOverview({
   metrics,
 }: ReportOverviewProps) {
   const [view, setView] = useState<"now" | "after">("now");
-  const { selectedCount, result: projection } = useWhatIfProjection(buildingId, primaryEnergyKwh, useType, grade);
+  const { actionCount, result: projection } = useWhatIfProjection(primaryEnergyKwh, useType, grade);
   const showingProjection = view === "after" && projection !== null;
   const displayGrade = showingProjection ? projection.projectedGrade : grade;
 
@@ -232,9 +232,11 @@ export function ReportOverview({
                 <Card tone="brand" padding="lg" className="flex flex-col gap-[var(--space-3)]">
                   <div className="flex items-center justify-between gap-[var(--space-2)]">
                     <h2 className="eco-subhead text-[var(--teal-800)]">
-                      절감 하기에서 고른 {selectedCount}개 항목 적용 시
+                      추천 절감 항목 {actionCount}개를 모두 적용하면
                     </h2>
-                    <Badge tone="good">실시간 계산</Badge>
+                    <Badge tone={projection.source === "beec" ? "good" : "caution"}>
+                      {projection.source === "beec" ? "실시간 계산" : "추정치"}
+                    </Badge>
                   </div>
                   <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
                     1차에너지소요량 {formatNumber(projection.currentPrimaryEnergyKwh)} →{" "}
@@ -251,7 +253,8 @@ export function ReportOverview({
                     </strong>
                   </p>
                   <p className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
-                    실제 등급({grade}등급)을 기준으로, 선택한 조치의 예상 절감 효과만큼 등급을 추정한 값이에요.
+                    실제 등급({grade}등급)을 기준으로, 추천 조치를 모두 실천했을 때의 예상 절감 효과만큼 등급을
+                    추정한 값이에요.
                   </p>
                   <ButtonLink
                     href={`/guide/${buildingId}`}
@@ -259,27 +262,15 @@ export function ReportOverview({
                     className="self-start"
                     trailingIcon={<Icon name="arrow-right" size={20} />}
                   >
-                    절감 하기에서 항목 더 고르기
+                    절감 하기에서 항목별로 보기
                   </ButtonLink>
                 </Card>
               ) : (
                 <Card tone="brand" padding="lg" className="flex flex-col gap-[var(--space-3)]">
-                  <h2 className="eco-subhead text-[var(--teal-800)]">개선 후 수치는 실천 항목을 고른 뒤 계산돼요</h2>
+                  <h2 className="eco-subhead text-[var(--teal-800)]">개선 후 등급을 계산하고 있어요</h2>
                   <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
-                    현재 데이터만으로는 개선 후 등급과 난방비를 확정할 수 없어요. 권장 조치를 모두 실천하면 연간 최대{" "}
-                    <strong className="text-[var(--teal-700)]">
-                      {formatManwon(metrics.annualSavingsPotentialManwon)}
-                    </strong>
-                    을 줄일 수 있어요.
+                    추천 절감 항목을 모두 적용했을 때의 등급과 1차에너지소요량을 곧 보여 드려요.
                   </p>
-                  <ButtonLink
-                    href={`/guide/${buildingId}`}
-                    variant="primary"
-                    className="self-start"
-                    trailingIcon={<Icon name="arrow-right" size={20} />}
-                  >
-                    절감 하기에서 실천 항목 고르기
-                  </ButtonLink>
                 </Card>
               )}
             </TabPanel>
@@ -314,8 +305,7 @@ export function ReportOverview({
           </dl>
           {metrics && view === "after" && !projection ? (
             <p className="mt-[var(--space-4)] text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
-              위 값은 현재 기준 데이터예요 — 개선 후 예상 등급·수치는 절감 하기에서 실천 항목을 고르면 확인할 수
-              있어요.
+              위 값은 현재 기준 데이터예요 — 개선 후 예상 등급·수치를 계산하는 중이에요.
             </p>
           ) : null}
         </Card>
