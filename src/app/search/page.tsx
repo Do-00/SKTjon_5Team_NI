@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { ButtonLink, Card, Icon } from "@/src/components/ui";
 import { EnergyGradeBadge } from "@/src/components/domain";
@@ -47,6 +48,13 @@ export default async function SearchPage(props: PageProps<"/search">) {
   const roadAddress = normalizeQuery(searchParams.ra);
   const hasQuery = query !== undefined;
   const { buildings: results, offerEstimateFallback } = await searchBuildings(query, buildingName, roadAddress);
+
+  // 검색 결과가 정확히 하나면(주소 하나로 특정된 것이므로) 목록을 거치지 않고 바로
+  // 성적표로 넘어간다 — addr- 매칭은 이미 홈 화면에서 이렇게 동작하니, 아파트
+  // API로 찾은 결과도 똑같이 맞춘다.
+  if (hasQuery && results.length === 1) {
+    redirect(`/report/${results[0].id}`);
+  }
 
   return (
     <SiteShell>

@@ -420,27 +420,49 @@ function toApartmentBuildingSummary(detail: ApartmentDetail): BuildingSummary | 
   };
 }
 
+/** Drops the leading 시/도 word (Korean addresses always start with one), e.g. `"서울특별시 구로구 경인로 158"` → `"구로구 경인로 158"`. */
+function dropSidoPrefix(address: string): string | null {
+  const spaceIndex = address.indexOf(" ");
+  return spaceIndex === -1 ? null : address.slice(spaceIndex + 1);
+}
+
 /**
  * Tries beec's apartment API for a name/road-address query `/api/match`
  * (지번 전용) couldn't find. The apartment dataset has no 지번 field at all, so
- * a jibun-shaped `query` (what `/api/match` wants) almost never matches it —
- * prefers `buildingName`, then `roadAddress`, falling back to `query` only
- * when Kakao gave neither (rare, but `/api/apt/search` still might substring-
- * match a plain query against a name).
+ * a jibun-shaped `query` (what `/api/match` wants) almost never matches it.
+ *
+ * Tries several candidates in order, not just whichever's non-empty first —
+ * beec's `/api/apt/search` does a plain substring match (see
+ * `ApartmentService.search`), and:
+ *  - Kakao's 건물명 doesn't always match beec's registered complex name
+ *    (e.g. Kakao's "동선아파트" for what beec calls "오류동선"), so a
+ *    non-empty candidate can still come back with zero hits.
+ *  - Kakao abbreviates 시/도 to `"서울"`, but beec's addresses spell out
+ *    `"서울특별시"` — a substring match across that gap always fails, so the
+ *    시/도-stripped form of the address is tried too (`"구로구 경인로 158"`
+ *    still matches `"서울특별시 구로구 경인로 158"`).
  */
 async function searchApartmentsByQuery(
   query: string,
   buildingName?: string,
   roadAddress?: string,
 ): Promise<BuildingSummary[]> {
-  const searchTerm = buildingName?.trim() || roadAddress?.trim() || query;
-  const result = await searchApartments(searchTerm, 5);
-  if (result.count === 0) return [];
+  const candidates = [buildingName, roadAddress, roadAddress && dropSidoPrefix(roadAddress), query, dropSidoPrefix(query)]
+    .map((term) => term?.trim())
+    .filter((term, index, all): term is string => Boolean(term) && all.indexOf(term) === index);
 
-  const details = await Promise.all(result.items.map((item) => getApartmentDetail(item.aptCode)));
-  return details
-    .map(toApartmentBuildingSummary)
-    .filter((summary): summary is BuildingSummary => summary !== null);
+  for (const term of candidates) {
+    const result = await searchApartments(term, 5);
+    if (result.count === 0) continue;
+
+    const details = await Promise.all(result.items.map((item) => getApartmentDetail(item.aptCode)));
+    const summaries = details
+      .map(toApartmentBuildingSummary)
+      .filter((summary): summary is BuildingSummary => summary !== null);
+    if (summaries.length > 0) return summaries;
+  }
+
+  return [];
 }
 
 export interface SearchOutcome {
