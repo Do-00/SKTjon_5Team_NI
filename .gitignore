@@ -6,3 +6,5 @@ node_modules/
 __pycashe__/
 
 .idea/
+.next/
+*.tsbuildinfo
