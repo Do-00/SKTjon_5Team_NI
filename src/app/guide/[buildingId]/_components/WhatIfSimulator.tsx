@@ -1,11 +1,12 @@
 "use client";
 
-import { Badge, Card, Icon } from "@/src/components/ui";
+import { Badge, ButtonLink, Card, Icon } from "@/src/components/ui";
 import { EnergyGradeBadge } from "@/src/components/domain";
 import type { WhatIfResult } from "@/src/lib/what-if";
 import { formatManwon, formatNumber } from "@/src/lib/format";
 
 export interface WhatIfSimulatorProps {
+  buildingId: string;
   result: WhatIfResult;
   selectedCount: number;
 }
@@ -17,7 +18,7 @@ export interface WhatIfSimulatorProps {
  * measure에 하나도 안 걸리면 `src/lib/what-if.ts`의 로컬 추정치로 대체한다
  * ("데모용 추정치" 배지로 구분).
  */
-export function WhatIfSimulator({ result, selectedCount }: WhatIfSimulatorProps) {
+export function WhatIfSimulator({ buildingId, result, selectedCount }: WhatIfSimulatorProps) {
   const {
     currentGrade,
     projectedGrade,
@@ -69,6 +70,15 @@ export function WhatIfSimulator({ result, selectedCount }: WhatIfSimulatorProps)
           <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
             예상 절감액 월 <strong className="text-[var(--teal-700)]">{formatManwon(totalMonthlySavingsManwon)}</strong>
           </p>
+
+          <ButtonLink
+            href={`/report/${buildingId}`}
+            variant="outline"
+            className="self-start"
+            trailingIcon={<Icon name="arrow-right" size={20} />}
+          >
+            성적표에서 확인하기
+          </ButtonLink>
         </>
       )}
     </Card>

@@ -8,7 +8,7 @@ import { ActionItem } from "@/src/components/domain/ActionItem";
 import { SectionHeader } from "@/src/components/layout/SectionHeader";
 import { ButtonLink, Card, Checkbox, Icon, Notice, RadioGroup, Select } from "@/src/components/ui";
 import { mapSimulateResponse, simulateWhatIfLocally, type WhatIfResult } from "@/src/lib/what-if";
-import { useChecklistStorage } from "../_lib/use-checklist-storage";
+import { useChecklistStorage } from "@/src/lib/checklist-storage";
 import {
   AUDIENCE_OPTIONS,
   BUDGET_OPTIONS,
@@ -138,7 +138,7 @@ export function GuideChecklist({
       </Card>
 
       <div className="flex min-w-0 flex-col gap-[var(--space-5)]">
-        <WhatIfSimulator result={whatIfResult} selectedCount={completedCount} />
+        <WhatIfSimulator buildingId={buildingId} result={whatIfResult} selectedCount={completedCount} />
 
         <div className="flex flex-col gap-[var(--space-2)]">
           <SectionHeader title="맞춤 절감 하기" hint={`${filteredActions.length}개 조치 · 난이도순`} />
