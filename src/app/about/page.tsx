@@ -29,7 +29,7 @@ const DATA_SOURCES: DataSource[] = [
   },
   {
     icon: "badge-check",
-    title: "건축물 에너지효율등급 인증 실적",
+    title: "건축물 에너지 효율 등급 인증 실적",
     description: "한국에너지공단 인증 기록. 추정 모델의 정답 역할을 합니다",
   },
   {
