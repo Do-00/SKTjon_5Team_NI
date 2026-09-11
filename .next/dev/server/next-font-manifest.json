@@ -1,0 +1,16 @@
+{
+  "app": {
+    "[project]/src/app/page": [
+      "static/media/fca78c2ee6cec166-s.p.1sn26-iqxrgtp.woff2"
+    ],
+    "[project]/src/app/report/[buildingId]/page": [
+      "static/media/fca78c2ee6cec166-s.p.1sn26-iqxrgtp.woff2"
+    ],
+    "[project]/src/app/search/page": [
+      "static/media/fca78c2ee6cec166-s.p.1sn26-iqxrgtp.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}
