@@ -70,6 +70,7 @@ public final class GradeTable {
     /** "1+등급" -> "1+". 프론트가 변환 로직을 갖지 않도록 서버가 내보냅니다. */
     public static String toCode(String label) {
         if (label == null || label.isBlank()) return null;
+        if ("등급외".equals(label)) return "등급외";   // "외" 만 남으면 의미가 사라지므로 원문 유지
         return label.replace("등급", "").trim();
     }
 

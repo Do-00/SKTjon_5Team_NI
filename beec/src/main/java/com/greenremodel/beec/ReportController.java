@@ -31,6 +31,7 @@ public class ReportController {
         }
 
         String key = seedDataService.findGroupKey(purpose, region, sizeBucket);
+        String label = (key == null) ? "" : key.replace("|", " ");
 
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("found", true);
@@ -42,12 +43,11 @@ public class ReportController {
         out.put("gradeCode", GradeTable.toCode(group.getEstimatedGrade()));  // "1+등급" -> "1+"
         out.put("primaryEnergyKwh", group.getMedianValue());                 // 시뮬레이터의 baseEnergy
         out.put("groupKey", key);
-        out.put("scopeLabel", key == null ? "" : key.replace("|", " "));
+        out.put("scopeLabel", label);
         return out;
     }
 
-    // 동네 비교 지도 기능용 - name은 seed.json districtGroups 키와 동일해야 함
-    // 키 형식: "{시도} {시군구}" 예) "서울 은평구", "부산 강서구" (동명 구/군 충돌 방지를 위해 지역명 포함)
+    // 동네 비교 지도 기능용 - name은 seed.json districtGroups 키(예: "은평구", "마곡지구")와 동일해야 함
     @GetMapping("/api/district")
     public Map<String, Object> getDistrict(@RequestParam String name) {
 

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { SupportProgram } from "../../data/programs";
-import { formatDate, formatManwon } from "../../lib/format";
 import { Badge } from "../ui/Badge";
 import { Icon } from "../ui/icons";
 import { cn } from "../ui/utils";
@@ -16,9 +15,15 @@ export interface ProgramCardProps {
   className?: string;
 }
 
-/** Deadline copy shared by the card and the leave-confirmation dialog, e.g. `"상시 접수"`, `"2026.11.30까지"`. */
+/**
+ * Deadline copy shared by the card and the leave-confirmation dialog.
+ * `deadline` is the source research's free-text application period (e.g.
+ * `"2026.3.3(화) ~ 3.27(금)"`, `"지자체 공고 참조"`) rather than a parseable
+ * date for almost every real program, so this just normalizes the one
+ * genuinely fixed value (`"상시"`) and otherwise passes the text through.
+ */
 export function formatProgramDeadline(deadline: SupportProgram["deadline"]): string {
-  return deadline === "상시" ? "상시 접수" : `${formatDate(deadline)}까지`;
+  return deadline === "상시" ? "상시 접수" : deadline;
 }
 
 const SURFACE =
@@ -33,7 +38,6 @@ const INTERACTIVE =
  */
 export function ProgramCard({ program, href, onSelect, maxTags = 2, className }: ProgramCardProps) {
   const TitleTag = href || onSelect ? "span" : "h3";
-  const amount = program.maxSupportManwon ? `최대 ${formatManwon(program.maxSupportManwon)}` : "공고 참고";
 
   const body = (
     <>
@@ -46,22 +50,25 @@ export function ProgramCard({ program, href, onSelect, maxTags = 2, className }:
             {program.name}
           </TitleTag>
         </span>
-        {program.matched ? (
-          <Badge tone="good" className="shrink-0">
-            <Icon name="badge-check" size={16} />
-            맞춤
-          </Badge>
-        ) : null}
-      </span>
-
-      <span className="flex items-center gap-[var(--space-2)]">
-        <Icon name="coins" size={22} className="shrink-0 text-[var(--teal-600)]" />
-        <span className="whitespace-nowrap font-brand text-[length:var(--text-heading-size)] font-black text-[var(--teal-700)]">
-          {amount}
+        <span className="flex shrink-0 flex-col items-end gap-1.5">
+          {program.matched ? (
+            <Badge tone="good">
+              <Icon name="badge-check" size={16} />
+              맞춤
+            </Badge>
+          ) : null}
+          {program.vulnerablePriority ? <Badge tone="caution">취약계층 우대</Badge> : null}
         </span>
       </span>
 
-      <span className="mt-auto flex flex-wrap items-center justify-between gap-[var(--space-3)]">
+      <span className="flex items-start gap-[var(--space-2)]">
+        <Icon name="coins" size={22} className="mt-0.5 shrink-0 text-[var(--teal-600)]" />
+        <span className="font-brand text-[length:var(--text-body-lg-size)] font-bold leading-[1.4] text-[var(--teal-700)]">
+          {program.amountLabel}
+        </span>
+      </span>
+
+      <span className="mt-auto flex flex-col gap-[var(--space-2)]">
         <span className="flex min-w-0 flex-wrap gap-[var(--space-2)]">
           {program.tags.slice(0, maxTags).map((tag) => (
             <Badge key={tag} tone="neutral">
@@ -69,8 +76,8 @@ export function ProgramCard({ program, href, onSelect, maxTags = 2, className }:
             </Badge>
           ))}
         </span>
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
-          <Icon name="calendar" size={16} />
+        <span className="inline-flex items-start gap-1.5 text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
+          <Icon name="calendar" size={16} className="mt-0.5 shrink-0" />
           {formatProgramDeadline(program.deadline)}
         </span>
       </span>

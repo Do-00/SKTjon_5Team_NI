@@ -60,7 +60,7 @@ public class SeedDataService {
      * 정확히 맞는 조합이 없으면 조용히 넓힙니다.
      *   {용도}|{시도}|{규모}  →  같은 용도·지역에서 표본이 가장 많은 규모  →  같은 용도 전체
      *
-     * 조합은 170개인데 실제 그룹은 150개라 빈 칸이 있습니다.
+     * 조합이 170개인데 실제 그룹은 150개라 빈 칸이 있습니다.
      * 데모 중에 "데이터 없음" 이 뜨는 것을 막는 것이 목적입니다.
      */
     public GroupInfo findGroup(String purpose, String region, String sizeBucket) {

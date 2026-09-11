@@ -8,7 +8,18 @@ export interface ProgramFilter {
 }
 
 /** Topic tags surfaced as quick filters, in display order (only those present in the data are shown). */
-const TOPIC_TAGS = ["단열", "창호", "그린리모델링", "태양광", "보조금"] as const;
+const TOPIC_TAGS = [
+  "단열",
+  "창호",
+  "보일러",
+  "태양광",
+  "조명",
+  "바우처",
+  "냉방",
+  "방수",
+  "안전시설",
+  "집수리",
+] as const;
 
 /**
  * Filter chips for the programs list: 전체, 맞춤 (matched to the user's

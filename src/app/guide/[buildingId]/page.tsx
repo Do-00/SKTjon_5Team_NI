@@ -33,7 +33,12 @@ export default async function GuidePage({ params }: PageProps<"/guide/[buildingI
     <SiteShell>
       <PageSection>
         <h1 className="sr-only">{building.name} 에너지 절감 가이드</h1>
-        <GuideChecklist buildingId={building.id} actions={actions} />
+        <GuideChecklist
+          buildingId={building.id}
+          actions={actions}
+          currentGrade={building.grade}
+          currentPrimaryEnergyKwh={building.primaryEnergyKwh}
+        />
       </PageSection>
     </SiteShell>
   );
