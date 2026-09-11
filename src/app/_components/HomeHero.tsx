@@ -62,8 +62,8 @@ export function HomeHero() {
 
       rememberLastSearch(jibunAddress);
       if (match.found) {
-        const bn = data.buildingName ? `?bn=${encodeURIComponent(data.buildingName)}` : "";
-        router.push(`/report/${encodeAddressId(jibunAddress)}${bn}`);
+        // The 건물명 rides inside the id, so the report and the guide resolve the same building on multi-building lots.
+        router.push(`/report/${encodeAddressId(jibunAddress, data.buildingName)}`);
       } else {
         router.push(searchHref(jibunAddress));
       }
@@ -84,13 +84,12 @@ export function HomeHero() {
             id="home-hero-title"
             className="font-brand text-[40px] font-black leading-[1.15] tracking-[-0.03em] text-white md:text-[56px]"
           >
-            주소로 확인하는
+            AI로 추적하는
             <br />
             우리 집 에너지 성적표
           </h1>
           <p className="max-w-[520px] text-[19px] leading-[1.65] text-[var(--teal-100)] md:text-[21px]">
-            인증 이력이 없는 건물도 등급을 추정해 드립니다. 소유주·임차인 유형에 따라 실천 방법과 정부 지원사업을
-            바로 안내합니다.
+            인증 이력이 없는 건물도 공공 데이터로 등급을 추정하고, 맞춤 지원사업까지 연결해 드려요.
           </p>
           <AddressSearchBar value={address} onSelect={handleSelect} className="max-w-[620px]" />
         </div>

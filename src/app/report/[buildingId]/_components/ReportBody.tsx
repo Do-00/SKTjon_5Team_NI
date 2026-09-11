@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { AiEnergyComment, type AiEnergyCommentProps } from "@/src/components/domain/AiEnergyComment";
 import { Badge, ButtonLink, Card, Icon } from "@/src/components/ui";
+import { getExampleEnergyCost } from "@/src/data/energy-cost";
 import { fetchEnergyCost } from "@/src/lib/eco-api";
 import { formatManwon } from "@/src/lib/format";
 import { ReportOverview, type ReportMetrics, type ReportOverviewProps } from "./ReportOverview";
@@ -14,8 +15,9 @@ export interface ReportBodyProps {
   /** Fixture figures, for the one building that has a full report fixture. */
   initialMetrics: ReportMetrics | null;
   /**
-   * Live beec matches have no figures server-side, so fetch the example ones
-   * from `/api/energy-cost` in the browser, where MSW answers it.
+   * Live beec matches and estimates have no figures server-side, so fetch the
+   * example ones from `/api/energy-cost` in the browser, where MSW answers it
+   * — or fall back to the same example table when MSW isn't running.
    */
   fetchLiveMetrics: boolean;
   /** Rendered between the AI comment and the savings card (the grade scale). */
@@ -41,7 +43,8 @@ export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics
         if (!cancelled) setMetrics(data);
       })
       .catch(() => {
-        // Mock unavailable (e.g. production build) — keep the "준비 중" state.
+        // MSW isn't running (service worker blocked, production build) — use the figures it would have served.
+        if (!cancelled) setMetrics(getExampleEnergyCost(grade));
       })
       .finally(() => {
         if (!cancelled) setReady(true);

@@ -13,7 +13,7 @@ import { getDistrict } from "@/src/lib/audience";
 import type { BasisRow } from "./_components/ReportOverview";
 import { ReportBody } from "./_components/ReportBody";
 
-/** `?bn=` carries the Kakao 건물명 from the home search, so lots with several buildings resolve to the same one. */
+/** `?bn=` carries the Kakao 건물명 on older links whose id doesn't have it packed in. */
 function readBuildingName(raw: string | string[] | undefined): string | undefined {
   const value = (Array.isArray(raw) ? raw[0] : raw)?.trim();
   return value ? value : undefined;
@@ -28,7 +28,7 @@ export async function generateMetadata({
   return { title: building ? `${building.name} 에너지 성적표` : "건물을 찾을 수 없어요" };
 }
 
-/** Rows for the "추정 근거" card, all sourced from the building fixture. */
+/** Rows for the "추정 근거" card, sourced from the building fixture (placeholders for estimates). */
 function buildBasisRows(building: BuildingSummary): BasisRow[] {
   const latestCert = building.certificationHistory.at(-1);
   return [
@@ -63,8 +63,10 @@ function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
 /**
  * Server shell for a building's energy report. Fixture buildings render
  * their fixture figures; live beec matches (`addr-…` ids from the home or
- * `/search`) render the `/api/match` fields, and `ReportBody` fetches their
- * heating-cost figures in the browser (MSW mock for now).
+ * `/search`) render the `/api/match` fields; estimates (`est-…` ids from
+ * `/search`'s 등급 추정 form) render the same "추정 근거" card as a fixture.
+ * `ReportBody` fetches heating-cost figures in the browser for both live
+ * matches and estimates (MSW mock, or the same example table without it).
  */
 export default async function ReportPage({ params, searchParams }: PageProps<"/report/[buildingId]">) {
   const { buildingId } = await params;
@@ -78,6 +80,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
   const hasFullReport = building.id === report.buildingId;
   const isEstimated = building.gradeSource === "estimated";
   const live = building.liveMatch;
+  const estimate = building.estimate;
 
   // 지도에서 강조할 동네. 실측 매칭이면 beec 가 준 값을, 아니면 주소에서 뽑습니다.
   const selectedDistrict = live?.district ?? getDistrict(building.address);
@@ -86,12 +89,20 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
 
   const metaLine = live
     ? [[live.region, live.district].filter(Boolean).join(" "), live.purpose].filter(Boolean).join(" · ")
-    : `${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`;
+    : estimate
+      ? [estimate.region, estimate.purpose, estimate.sizeLabel].join(" · ")
+      : `${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`;
 
   return (
     <SiteShell>
       <PageSection className="flex flex-col gap-[var(--space-6)]">
-        {isEstimated ? (
+        {estimate ? (
+          <Notice tone="warn">
+            이 주소는 에너지효율등급 실측 데이터가 없습니다. 아래 등급은 같은 용도·지역·규모 건물{" "}
+            {formatNumber(estimate.sampleCount)}건의 통계로 추정한 값입니다.
+            {estimate.lowSample ? " 표본이 적어 참고용으로만 봐 주세요." : ""}
+          </Notice>
+        ) : isEstimated ? (
           <Notice tone="warn">
             이 건물은 에너지효율등급 인증 이력이 없습니다. 아래 등급은 공공 데이터 기반 추정치입니다.
           </Notice>
@@ -130,7 +141,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
                 }
               : null
           }
-          fetchLiveMetrics={live !== undefined}
+          fetchLiveMetrics={live !== undefined || estimate !== undefined}
         >
           <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
             <SectionHeader
