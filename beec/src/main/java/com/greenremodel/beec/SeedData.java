@@ -6,12 +6,15 @@ import java.util.Map;
 public class SeedData {
     private String generatedAt;
     private Map<String, GroupInfo> groups;
-    private List<Map<String, Object>> buildings; // 지금은 안 쓰지만 나중에 필요하면 사용
+    private Map<String, DistrictInfo> districtGroups;
+    private List<BuildingRecord> buildings; // Map<String,Object> -> 타입 있는 DTO로 교체 (주소 매칭에 사용)
 
     public String getGeneratedAt() { return generatedAt; }
     public void setGeneratedAt(String generatedAt) { this.generatedAt = generatedAt; }
     public Map<String, GroupInfo> getGroups() { return groups; }
     public void setGroups(Map<String, GroupInfo> groups) { this.groups = groups; }
-    public List<Map<String, Object>> getBuildings() { return buildings; }
-    public void setBuildings(List<Map<String, Object>> buildings) { this.buildings = buildings; }
+    public Map<String, DistrictInfo> getDistrictGroups() { return districtGroups; }
+    public void setDistrictGroups(Map<String, DistrictInfo> districtGroups) { this.districtGroups = districtGroups; }
+    public List<BuildingRecord> getBuildings() { return buildings; }
+    public void setBuildings(List<BuildingRecord> buildings) { this.buildings = buildings; }
 }
