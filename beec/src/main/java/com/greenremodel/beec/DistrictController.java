@@ -43,12 +43,18 @@ public class DistrictController {
     @GetMapping("/api/districts")
     public Map<String, Object> districts(
             @RequestParam(required = false) String region,
-            @RequestParam(required = false, defaultValue = "주거용") String purpose,
+            @RequestParam(name = "purpose", required = false) String requestedPurpose,
             @RequestParam(required = false, defaultValue = "5") int minSample) {
 
-        // 지도에 찍을 동네의 전체 목록은 용도를 섞은 쪽에서 가져옵니다.
-        // 주거용 인증이 한 건도 없는 동네도 회색 점으로는 찍혀야 하기 때문입니다.
-        Map<String, DistrictInfo> universe = seedDataService.districtGroupsOf("전체");
+        // 아파트 한정. 호출부가 무엇을 보내든 주거용으로 고정합니다.
+        // 용도가 섞인 평균과 아파트를 비교하면 지도 전체가 의미를 잃습니다.
+        final String purpose = ReportController.SUPPORTED_PURPOSE;
+
+        // 지도에 찍을 동네의 전체 목록은 비주거용을 걷어내기 전 기준입니다.
+        // 아파트 인증이 한 건도 없는 동네도 회색 점으로는 찍혀야 하기 때문입니다.
+        // 여기를 주거용 통계로 바꾸면 지방이 지도에서 아예 사라지고, 그 순간
+        // "인증 사각지대" 라는 논점이 그림에서 없어집니다.
+        Map<String, DistrictInfo> universe = seedDataService.allDistrictGroups();
         Map<String, DistrictInfo> stats = seedDataService.districtGroupsOf(purpose);
 
         List<Map<String, Object>> items = new ArrayList<>();
