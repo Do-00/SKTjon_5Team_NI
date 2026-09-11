@@ -5,7 +5,7 @@ import { Card, Notice } from "@/src/components/ui";
 import { GradeScale } from "@/src/components/domain";
 import { DistrictMap } from "@/src/components/domain/DistrictMap";
 import districtCoords from "@/src/data/district-coords.json";
-import { getBuildingById, type BuildingSummary, type LiveMatchInfo } from "@/src/data/buildings";
+import { getBuildingById, type ApartmentReportInfo, type BuildingSummary, type LiveMatchInfo } from "@/src/data/buildings";
 import { getEcoCheckReport } from "@/src/data/account";
 import { PRIMARY_ENERGY_UNIT } from "@/src/data/grades";
 import { formatNumber } from "@/src/lib/format";
@@ -73,6 +73,32 @@ function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
   return rows;
 }
 
+/** Rows for an `/api/apt/{aptCode}` match — real facts from the 서울 아파트 dataset, not placeholders. */
+function buildApartmentBasisRows(apt: ApartmentReportInfo, primaryEnergyKwh: number): BasisRow[] {
+  const rows: BasisRow[] = [
+    { icon: "map-pin", label: "지역", value: [apt.sgg, apt.emd].filter(Boolean).join(" ") || "정보 없음" },
+    {
+      icon: "trending-down",
+      label: "1차에너지소요량",
+      value: `${formatNumber(primaryEnergyKwh)} ${PRIMARY_ENERGY_UNIT}`,
+    },
+  ];
+  if (apt.builder) rows.push({ icon: "building", label: "건설사", value: apt.builder });
+  if (apt.households !== null) rows.push({ icon: "home", label: "세대수", value: `${formatNumber(apt.households)}세대` });
+  if (apt.heatingType) rows.push({ icon: "thermometer", label: "난방 방식", value: apt.heatingType });
+  if (apt.insulationEra) rows.push({ icon: "wind", label: "적용 단열기준", value: apt.insulationEra });
+
+  const sourceLabel: Record<ApartmentReportInfo["source"], string> = {
+    measured: "인증 실적(실측)",
+    "estimated-point": "또래 단지 기반 추정",
+    "estimated-range": "또래 단지 기반 추정(범위)",
+    unknown: "추정 불가",
+  };
+  rows.push({ icon: "key", label: "데이터 근거", value: sourceLabel[apt.source] });
+
+  return rows;
+}
+
 /** Rows for the "직접 입력한 집 정보" card — from the home hero's apartment checklist, via query params. */
 function buildChecklistRows(checklist: NonNullable<ReturnType<typeof readApartmentChecklistParams>>): BasisRow[] {
   const rows: BasisRow[] = [];
@@ -113,21 +139,27 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
   const live = building.liveMatch;
   const estimate = building.estimate;
 
-  // 지도에서 강조할 동네. 실측 매칭이면 beec 가 준 값을, 아니면 주소에서 뽑습니다.
-  const selectedDistrict = live?.district ?? getDistrict(building.address);
+  // 지도에서 강조할 동네. 아파트 API·실측 매칭이면 beec 가 준 값을, 아니면 주소에서 뽑습니다.
+  const selectedDistrict = building.apartment?.sgg ?? live?.district ?? getDistrict(building.address);
   // 비주거용 건물이면 비주거용끼리 비교해야 등급 기준표가 맞습니다.
   const comparePurpose = live?.purpose === "주거용 이외" ? "주거용 이외" : "주거용";
 
-  const metaLine = live
-    ? [[live.region, live.district].filter(Boolean).join(" "), live.purpose].filter(Boolean).join(" · ")
-    : estimate
-      ? [estimate.region, estimate.purpose, estimate.sizeLabel].join(" · ")
-      : `${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`;
+  const metaLine = building.apartment
+    ? [[building.apartment.sgg, building.apartment.emd].filter(Boolean).join(" "), "공동주택(아파트)"]
+        .filter(Boolean)
+        .join(" · ")
+    : live
+      ? [[live.region, live.district].filter(Boolean).join(" "), live.purpose].filter(Boolean).join(" · ")
+      : estimate
+        ? [estimate.region, estimate.purpose, estimate.sizeLabel].join(" · ")
+        : `${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`;
 
   return (
     <SiteShell>
       <PageSection className="flex flex-col gap-[var(--space-6)]">
-        {estimate ? (
+        {building.apartment?.disclaimer ? (
+          <Notice tone="warn">{building.apartment.disclaimer}</Notice>
+        ) : estimate ? (
           <Notice tone="warn">
             이 주소는 에너지효율등급 실측 데이터가 없습니다. 아래 등급은 같은 용도·지역·규모 건물{" "}
             {formatNumber(estimate.sampleCount)}건의 통계로 추정한 값입니다.
@@ -150,7 +182,11 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
             primaryEnergyKwh: building.primaryEnergyKwh,
             grade: building.grade,
             isEstimated,
-            basisRows: live ? buildLiveBasisRows(live) : buildBasisRows(building),
+            basisRows: building.apartment
+              ? buildApartmentBasisRows(building.apartment, building.primaryEnergyKwh)
+              : live
+                ? buildLiveBasisRows(live)
+                : buildBasisRows(building),
           }}
           comment={{
             buildingName: building.name,
@@ -172,7 +208,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
                 }
               : null
           }
-          fetchLiveMetrics={live !== undefined || estimate !== undefined}
+          fetchLiveMetrics={live !== undefined || estimate !== undefined || building.apartment !== undefined}
         >
           {checklist ? (
             <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">

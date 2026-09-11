@@ -68,7 +68,8 @@ export function HomeHero() {
         // beec가 아직 이 값들을 못 받아서, 성적표 페이지가 참고용으로만 보여준다.
         router.push(withApartmentChecklistParams(`/report/${encodeAddressId(jibunAddress, data.buildingName)}`, checklist));
       } else {
-        router.push(searchHref(jibunAddress));
+        // 아파트 API는 지번을 모르고 이름/도로명으로만 찾으니, 건물명·도로명도 같이 넘긴다.
+        router.push(searchHref(jibunAddress, data.buildingName, data.roadAddress));
       }
     } catch {
       if (requestId === latestRequest.current) setStatus("error");

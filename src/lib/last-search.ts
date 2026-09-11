@@ -9,8 +9,19 @@ import { useSyncExternalStore } from "react";
 const STORAGE_KEY = "eco:last-search-query";
 const CHANGE_EVENT = "eco:last-search-change";
 
-export function searchHref(query: string | null | undefined): string {
-  return query ? `/search?q=${encodeURIComponent(query)}` : "/search";
+/**
+ * `buildingName`/`roadAddress` ride along as `&bn=`/`&ra=` — `/api/match`
+ * only matches by 지번 (`query`), but the separate 아파트 API has no 지번 field
+ * at all, only name and 도로명. Kakao often leaves `buildingName` blank for a
+ * plain address pick, so `roadAddress` is the more reliable of the two —
+ * `/search` tries both, on whichever field each backend actually indexes.
+ */
+export function searchHref(query: string | null | undefined, buildingName?: string, roadAddress?: string): string {
+  if (!query) return "/search";
+  const params = new URLSearchParams({ q: query });
+  if (buildingName?.trim()) params.set("bn", buildingName.trim());
+  if (roadAddress?.trim()) params.set("ra", roadAddress.trim());
+  return `/search?${params.toString()}`;
 }
 
 export function rememberLastSearch(query: string): void {
