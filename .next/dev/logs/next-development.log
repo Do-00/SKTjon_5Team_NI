@@ -1,0 +1,11 @@
+{"timestamp":"00:00:12.910","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:15.954","source":"Server","level":"LOG","message":"○ Compiling / ..."}
+{"timestamp":"00:00:18.332","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
+{"timestamp":"00:00:18.384","source":"Browser","level":"GROUPCOLLAPSED","message":"[MSW] Mocking enabled."}
+{"timestamp":"00:00:18.384","source":"Browser","level":"LOG","message":"Documentation: https://mswjs.io/docs"}
+{"timestamp":"00:00:18.384","source":"Browser","level":"LOG","message":"Found an issue? https://github.com/mswjs/msw/issues"}
+{"timestamp":"00:00:18.384","source":"Browser","level":"LOG","message":"Worker script URL: http://localhost:3000/mockServiceWorker.js"}
+{"timestamp":"00:00:18.384","source":"Browser","level":"LOG","message":"Worker scope: http://localhost:3000/"}
+{"timestamp":"00:00:18.384","source":"Browser","level":"LOG","message":"Client ID: b16de659-0e2b-46d0-b7ed-866919b6643b (top-level)"}
+{"timestamp":"00:00:18.384","source":"Browser","level":"GROUPEND","message":""}
+{"timestamp":"00:00:18.385","source":"Browser","level":"LOG","message":"[\"[object Object]\",\"[object Object]\",\"[object Object]\",\"[object Object]\",\"[object Object]\",\"[object Object]\"]"}
