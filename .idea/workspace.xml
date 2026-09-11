@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="30b97b9e-0620-40c8-8810-61cf60521ab6" name="변경" comment="">
+      <change beforePath="$PROJECT_DIR$/.next/dev/build-manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/build-manifest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000130.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000132.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000140.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000141.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000142.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000143.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/00000144.sst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/CURRENT" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/CURRENT" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/LOG" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/cache/turbopack/v16.3.4-299180d3/LOG" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/lock" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/logs/next-development.log" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/logs/next-development.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/prerender-manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/prerender-manifest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/app-paths-manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/app-paths-manifest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/[root-of-the-server]__1md7cjc._.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/[root-of-the-server]__1md7cjc._.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/node_modules_0fc7k2s._.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/node_modules_0fc7k2s._.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/node_modules_next_dist_1ne3vih._.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/node_modules_next_dist_1ne3vih._.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/src_0o-v8c_._.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/chunks/ssr/src_0o-v8c_._.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/middleware-build-manifest.js" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/middleware-build-manifest.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/next-font-manifest.js" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/next-font-manifest.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/server/next-font-manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/server/next-font-manifest.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/static/chunks/node_modules_next_0u3ndb3._.js.map" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/static/chunks/node_modules_next_0u3ndb3._.js.map" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.next/dev/trace" beforeDir="false" afterPath="$PROJECT_DIR$/.next/dev/trace" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/beec/src/main/java/com/greenremodel/beec/BeecApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/beec/src/main/java/com/greenremodel/beec/BeecApplication.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3JANphNoUPn02Zl30fdtnschLzB" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;js.debugger.nextJs.config.created.client&quot;: &quot;true&quot;,
+    &quot;js.debugger.nextJs.config.created.server&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/cyb06/OneDrive/Desktop/01. Project/SKTjon_5Team_NI&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;npm.Next.js: 서버 측.executor&quot;: &quot;Run&quot;
+  }
+}</component>
+  <component name="RunManager" selected="npm.Next.js: 서버 측">
+    <configuration name="Next.js: 클라이언트 측에서 디버그" type="JavascriptDebugType" uri="http://localhost:3000/">
+      <method v="2" />
+    </configuration>
+    <configuration name="Next.js: 서버 측" type="js.build_tools.npm">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="dev" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-a203e0a19954-intellij.indexing.shared.core-IU-262.10315.125" />
+        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-IU-262.10315.125" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="디폴트 작업">
+      <changelist id="30b97b9e-0620-40c8-8810-61cf60521ab6" name="변경" comment="" />
+      <created>1789100097758</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1789100097758</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
