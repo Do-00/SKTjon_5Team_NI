@@ -222,7 +222,7 @@ export function ReportOverview({
         <Card padding="lg">
           <SectionHeader
             as="h2"
-            title={metrics ? "추정 근거" : "건물 정보"}
+            title="건물 정보"
             hint={showingProjection ? "개선 후 예상치" : "공공 데이터 기반"}
           />
           <dl className="mt-[var(--space-5)] grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-4)] md:grid-cols-2">
