@@ -28,7 +28,16 @@ const CURRENT_YEAR = new Date().getFullYear();
 export function ApartmentChecklistStep({ data, onBack, onSubmit }: ApartmentChecklistStepProps) {
   const [year, setYear] = useState("");
   const [builder, setBuilder] = useState("");
-  const [heatingType, setHeatingType] = useState<HeatingType | undefined>(undefined);
+  /**
+   * "아직 고르지 않음" 을 undefined 가 아니라 빈 문자열로 둡니다.
+   *
+   * undefined 를 RadioGroup 의 value 로 넘기면 처음에는 uncontrolled 로 동작하다가
+   * 사용자가 하나를 고르는 순간 controlled 로 바뀝니다. React 가 콘솔에
+   * "changing an uncontrolled input to be controlled" 경고를 냅니다.
+   * 빈 문자열은 어느 option.value 와도 맞지 않아 "선택 없음" 화면은 그대로이면서,
+   * 처음부터 끝까지 controlled 로 유지됩니다.
+   */
+  const [heatingType, setHeatingType] = useState<HeatingType | "">("");
   const yearId = useId();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -37,7 +46,7 @@ export function ApartmentChecklistStep({ data, onBack, onSubmit }: ApartmentChec
     onSubmit({
       completionYear: year.trim() && Number.isFinite(parsedYear) ? parsedYear : null,
       builder,
-      heatingType: heatingType ?? null,
+      heatingType: heatingType || null,
     });
   }
 
