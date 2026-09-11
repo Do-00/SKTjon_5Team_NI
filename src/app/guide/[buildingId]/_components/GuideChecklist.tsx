@@ -6,17 +6,15 @@ import type { GradeCode } from "@/src/data/grades";
 import type { SimulateResult } from "@/src/lib/beec-client";
 import { ActionItem } from "@/src/components/domain/ActionItem";
 import { SectionHeader } from "@/src/components/layout/SectionHeader";
-import { ButtonLink, Card, Checkbox, Icon, Notice, RadioGroup, Select } from "@/src/components/ui";
+import { ButtonLink, Card, Icon, Notice, RadioGroup } from "@/src/components/ui";
 import { mapSimulateResponse, simulateWhatIfLocally, type WhatIfResult } from "@/src/lib/what-if";
 import { useChecklistStorage } from "@/src/lib/checklist-storage";
 import {
   AUDIENCE_OPTIONS,
-  BUDGET_OPTIONS,
   DEFAULT_GUIDE_FILTER_STATE,
   filterActions,
   sortByRecommendedRemodel,
   type AudienceFilter,
-  type BudgetFilter,
   type GuideFilterState,
 } from "../_lib/guide-filters";
 import { WhatIfSimulator } from "./WhatIfSimulator";
@@ -42,7 +40,6 @@ export function GuideChecklist({
 }: GuideChecklistProps) {
   const [filters, setFilters] = useState<GuideFilterState>(DEFAULT_GUIDE_FILTER_STATE);
   const { completed, toggle, hydrated } = useChecklistStorage(buildingId);
-  const budgetSelectId = useId();
   const progressId = useId();
 
   const filteredActions = useMemo(
@@ -118,26 +115,6 @@ export function GuideChecklist({
             setFilters((current) => ({ ...current, audience: value as AudienceFilter }))
           }
           options={AUDIENCE_OPTIONS}
-        />
-
-        <div aria-hidden="true" className="h-px bg-[var(--border-subtle)]" />
-
-        <Select
-          id={budgetSelectId}
-          label="예산 범위"
-          value={filters.budget}
-          onChange={(event) =>
-            setFilters((current) => ({ ...current, budget: event.target.value as BudgetFilter }))
-          }
-          options={BUDGET_OPTIONS}
-        />
-
-        <Checkbox
-          label="지원사업 대상만 보기"
-          checked={filters.supportOnly}
-          onChange={(event) =>
-            setFilters((current) => ({ ...current, supportOnly: event.target.checked }))
-          }
         />
       </Card>
 

@@ -21,6 +21,8 @@ export interface ReportBodyProps {
    * — or fall back to the same example table when MSW isn't running.
    */
   fetchLiveMetrics: boolean;
+  /** 세대 평균 면적(㎡) — `/api/energy-cost`가 난방비를 면적으로 환산하는 데 쓴다. */
+  areaSqm: number;
   /** Rendered between the AI remodel report and the savings card (the grade scale). */
   children?: ReactNode;
 }
@@ -31,7 +33,14 @@ export interface ReportBodyProps {
  * report and the savings card wait for that fetch so they're generated from
  * the real figures rather than flashing the "준비 중" state.
  */
-export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics, children }: ReportBodyProps) {
+export function ReportBody({
+  overview,
+  remodel,
+  initialMetrics,
+  fetchLiveMetrics,
+  areaSqm,
+  children,
+}: ReportBodyProps) {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(initialMetrics);
   const [ready, setReady] = useState(!fetchLiveMetrics);
   // AI 리모델링 리포트의 연간 절감 고정비. `undefined` = 아직 받는 중, `null` = 리포트가 계산하지 못함.
@@ -41,7 +50,7 @@ export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics
   useEffect(() => {
     if (!fetchLiveMetrics) return;
     let cancelled = false;
-    fetchEnergyCost(grade, primaryEnergyKwh)
+    fetchEnergyCost(grade, primaryEnergyKwh, areaSqm)
       .then((data) => {
         if (!cancelled) setMetrics(data);
       })
@@ -55,7 +64,7 @@ export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics
     return () => {
       cancelled = true;
     };
-  }, [fetchLiveMetrics, grade, primaryEnergyKwh]);
+  }, [fetchLiveMetrics, grade, primaryEnergyKwh, areaSqm]);
 
   return (
     <>

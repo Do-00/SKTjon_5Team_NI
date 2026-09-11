@@ -3,14 +3,11 @@ import type { Metadata } from "next";
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { Card, Notice } from "@/src/components/ui";
 import { GradeScale } from "@/src/components/domain";
-import { DistrictMap } from "@/src/components/domain/DistrictMap";
-import districtCoords from "@/src/data/district-coords.json";
 import { getBuildingById, type ApartmentReportInfo, type BuildingSummary, type LiveMatchInfo } from "@/src/data/buildings";
 import type { ApartmentDetail, ReportEstimate } from "@/src/lib/beec-client";
 import { getEcoCheckReport } from "@/src/data/account";
 import { PRIMARY_ENERGY_UNIT } from "@/src/data/grades";
 import { formatNumber } from "@/src/lib/format";
-import { getDistrict } from "@/src/lib/audience";
 import { HEATING_TYPE_OPTIONS, readApartmentChecklistParams } from "@/src/lib/apartment-checklist";
 import type { BasisRow } from "./_components/ReportOverview";
 import { ReportBody } from "./_components/ReportBody";
@@ -75,9 +72,10 @@ function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
 }
 
 /** Rows for an `/api/apt/{aptCode}` match — real facts from the 서울 아파트 dataset, not placeholders. */
-function buildApartmentBasisRows(apt: ApartmentReportInfo, primaryEnergyKwh: number): BasisRow[] {
+function buildApartmentBasisRows(apt: ApartmentReportInfo, primaryEnergyKwh: number, completionYear: number): BasisRow[] {
   const rows: BasisRow[] = [
     { icon: "map-pin", label: "지역", value: [apt.sgg, apt.emd].filter(Boolean).join(" ") || "정보 없음" },
+    { icon: "calendar", label: "준공연도", value: `${completionYear}년` },
     {
       icon: "trending-down",
       label: "1차에너지소요량",
@@ -258,11 +256,6 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
   const live = building.liveMatch;
   const estimate = building.estimate;
 
-  // 지도에서 강조할 동네. 아파트 API·실측 매칭이면 beec 가 준 값을, 아니면 주소에서 뽑습니다.
-  const selectedDistrict = building.apartment?.sgg ?? live?.district ?? getDistrict(building.address);
-  // 비주거용 건물이면 비주거용끼리 비교해야 등급 기준표가 맞습니다.
-  const comparePurpose = live?.purpose === "주거용 이외" ? "주거용 이외" : "주거용";
-
   const metaLine = building.apartment
     ? [[building.apartment.sgg, building.apartment.emd].filter(Boolean).join(" "), "공동주택(아파트)"]
         .filter(Boolean)
@@ -304,7 +297,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
             basisRows:
               (isEstimated ? buildRawBasisRows(building) : null) ??
               (building.apartment
-                ? buildApartmentBasisRows(building.apartment, building.primaryEnergyKwh)
+                ? buildApartmentBasisRows(building.apartment, building.primaryEnergyKwh, building.completionYear)
                 : live
                   ? buildLiveBasisRows(live)
                   : buildBasisRows(building)),
@@ -331,6 +324,7 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
               : null
           }
           fetchLiveMetrics={live !== undefined || estimate !== undefined || building.apartment !== undefined}
+          areaSqm={building.areaSqm}
         >
           {checklist ? (
             <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
@@ -357,19 +351,6 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
               hintSize="sm"
             />
             <GradeScale value={building.grade} selectable />
-          </Card>
-
-          <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
-            <SectionHeader
-              title="동네 비교"
-              hint="같은 용도 건물의 인증 실적을 지역끼리 비교합니다. 회색은 인증 사례가 부족해 등급을 매기지 않은 지역입니다."
-              hintSize="sm"
-            />
-            <DistrictMap
-              coords={districtCoords.districts}
-              selected={selectedDistrict}
-              purpose={comparePurpose}
-            />
           </Card>
         </ReportBody>
       </PageSection>
