@@ -1,5 +1,11 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any --
+ * 카카오 지도 SDK 는 타입 정의(@types)를 제공하지 않고 window.kakao 전역으로만
+ * 노출됩니다. 지도·오버레이 인스턴스에 한해 any 를 허용합니다. 이 파일 밖으로는
+ * 새어 나가지 않습니다 — 바깥에 주는 값은 전부 district-scale.ts 의 타입입니다.
+ */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   NO_DATA_COLOR,
@@ -130,10 +136,11 @@ export function DistrictMap({
 
   // 2. 지도 생성
   useEffect(() => {
-    if (!appKey) {
-      setMapFailed(true);
-      return;
-    }
+    // 키가 없으면 아무것도 하지 않습니다. 여기서 setState 를 부르면 이펙트가
+    // 렌더를 한 번 더 유발합니다(react-hooks/set-state-in-effect). 키의 유무는
+    // 렌더 중에 바로 알 수 있는 값이라 state 로 둘 이유가 없습니다 — 아래
+    // 화면 분기에서 appKey 를 직접 봅니다.
+    if (!appKey) return;
     let alive = true;
     loadKakaoSdk(appKey)
       .then(() => {
@@ -233,7 +240,8 @@ export function DistrictMap({
   }
 
   const missingCoords = stats !== null && joined.length === 0;
-  if (mapFailed || missingCoords) {
+  const noMap = mapFailed || !appKey;
+  if (noMap || missingCoords) {
     return (
       <DistrictRanking
         stats={stats ?? []}
@@ -242,7 +250,9 @@ export function DistrictMap({
         note={
           missingCoords
             ? "좌표 데이터가 없어 순위로 표시합니다."
-            : "지도를 불러오지 못해 순위로 표시합니다."
+            : !appKey
+              ? "지도 키(NEXT_PUBLIC_KAKAO_MAP_KEY)가 없어 순위로 표시합니다."
+              : "지도를 불러오지 못해 순위로 표시합니다."
         }
         className={className}
       />

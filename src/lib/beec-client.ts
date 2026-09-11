@@ -18,14 +18,25 @@ export interface MatchResult {
   found: boolean;
   /** Building/site name, e.g. `"서울시 서초동1692-6 업무시설"`. Present only when `found`. */
   name?: string;
-  /** Grade label with the `"등급"` suffix, e.g. `"1+등급"`. Present only when `found`. */
-  grade?: string;
-  /** `grade` without the suffix, e.g. `"1+"`. Present only when `found`. */
-  gradeCode?: string;
-  /** Annual primary energy consumption, kWh/m²·yr. Present only when `found`. */
-  energyValue?: number;
+  /**
+   * 현행 기준표(`GradeTable.java`)로 `energyValue` 에서 계산한 등급 라벨,
+   * e.g. `"1+등급"`. `/api/simulate` 의 `gradeBefore` 와 같은 기준입니다.
+   * 에너지 값이 없는 기록이면 `null`.
+   */
+  grade?: string | null;
+  /** `grade` without the suffix, e.g. `"1+"`. `null` when `grade` is null. */
+  gradeCode?: string | null;
+  /**
+   * 인증서에 실제로 적혀 있는 등급. 인증서는 발급 당시 고시 기준이라
+   * `grade` 와 다를 수 있습니다. 화면에는 "인증서 기준" 으로 따로 적어 주세요.
+   */
+  certGrade?: string | null;
+  /** `certGrade` without the `"등급"` suffix. */
+  certGradeCode?: string | null;
+  /** Annual primary energy consumption, kWh/m²·yr. `null` when the record has none. */
+  energyValue?: number | null;
   /** Same value as `energyValue`, named for the what-if simulator's `baseEnergy`. */
-  primaryEnergyKwh?: number;
+  primaryEnergyKwh?: number | null;
   /** `"주거용"` or `"주거용 이외"`. Present only when `found`. */
   purpose?: string;
   region?: string;
@@ -88,7 +99,7 @@ export const REGION_OPTIONS: readonly string[] = [
 ];
 
 /** beec grade labels carry a `"등급"` suffix (`"1+등급"`); `GradeCode` doesn't. */
-export function toGradeCode(label: string | undefined): GradeCode | null {
+export function toGradeCode(label: string | null | undefined): GradeCode | null {
   return GRADE_ORDER.find((code) => `${code}등급` === label) ?? null;
 }
 
