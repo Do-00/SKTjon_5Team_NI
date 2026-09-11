@@ -40,6 +40,25 @@ function gradeFromPrimaryEnergy(kwh: number): GradeCode {
   );
 }
 
+/**
+ * beec's band table (and the mirrored one above) grades a building purely
+ * from its raw primary-energy value — a statistical approximation built
+ * from many buildings' medians, not that specific building's real/certified
+ * grade (see `GradeTable.java`'s doc comment). A single building's real
+ * grade can sit several steps away from what its raw energy value implies,
+ * so showing the band table's absolute answer next to the real grade can
+ * look like an unrelated (even worse) number.
+ *
+ * Instead we read the band table's own before→after RANK CHANGE — how many
+ * grade-steps the reduction is worth, on its own internally-consistent
+ * scale — and apply that same step count to the building's real grade.
+ */
+function shiftGrade(realGrade: GradeCode, simBefore: GradeCode, simAfter: GradeCode): GradeCode {
+  const rankShift = GRADES[simAfter].rank - GRADES[simBefore].rank;
+  const shiftedRank = Math.min(GRADE_ORDER.length, Math.max(1, GRADES[realGrade].rank + rankShift));
+  return GRADE_ORDER[shiftedRank - 1];
+}
+
 /** 선택된 실천 항목을 적용했을 때의 예상 1차에너지소요량·등급을 계산한다 (beec 없이도 동작하는 폴백). */
 export function simulateWhatIfLocally(
   currentPrimaryEnergyKwh: number,
@@ -52,7 +71,13 @@ export function simulateWhatIfLocally(
   );
   const projectedPrimaryEnergyKwh = Math.round(currentPrimaryEnergyKwh * factor);
   const projectedGrade =
-    selectedActions.length === 0 ? currentGrade : gradeFromPrimaryEnergy(projectedPrimaryEnergyKwh);
+    selectedActions.length === 0
+      ? currentGrade
+      : shiftGrade(
+          currentGrade,
+          gradeFromPrimaryEnergy(currentPrimaryEnergyKwh),
+          gradeFromPrimaryEnergy(projectedPrimaryEnergyKwh),
+        );
   const totalMonthlySavingsManwon = selectedActions.reduce(
     (sum, action) => sum + action.monthlySavingsManwon,
     0,
@@ -84,6 +109,7 @@ function isGradeCode(value: string | undefined): value is GradeCode {
 export function mapSimulateResponse(
   result: SimulateResult,
   totalMonthlySavingsManwon: number,
+  realGrade: GradeCode,
 ): WhatIfResult | null {
   if (
     !result.found ||
@@ -97,8 +123,8 @@ export function mapSimulateResponse(
   }
 
   return {
-    currentGrade: result.gradeCodeBefore,
-    projectedGrade: result.gradeCode,
+    currentGrade: realGrade,
+    projectedGrade: shiftGrade(realGrade, result.gradeCodeBefore, result.gradeCode),
     currentPrimaryEnergyKwh: result.baseEnergy,
     projectedPrimaryEnergyKwh: result.energy,
     reductionPercent: result.savedPct,

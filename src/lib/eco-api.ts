@@ -51,10 +51,20 @@ export function matchPostcodeAddress(data: KakaoPostcodeData): Promise<MatchResu
   });
 }
 
-/** Example report figures for a grade. beec has no such endpoint yet — MSW answers it (`src/mocks/handlers.ts`). */
-export function fetchEnergyCost(gradeCode: string, primaryEnergyKwh: number): Promise<EnergyMetrics> {
-  return getJson<EnergyMetrics>("/api/energy-cost", {
-    gradeCode,
-    primaryEnergyKwh: String(primaryEnergyKwh),
-  });
+/**
+ * Example report figures for a grade. beec has no such endpoint yet, so this
+ * calls our own same-origin `/api/energy-cost` route handler (a relative
+ * URL, resolved against the page's own origin — not beec's `API_BASE_URL`).
+ * It used to go through MSW mocking a request to beec's origin instead, but
+ * that only worked when the browser's mock Service Worker registered
+ * successfully, which isn't reliable everywhere — so the "개선 후" tab and
+ * savings card would silently disappear whenever registration failed.
+ */
+export async function fetchEnergyCost(gradeCode: string, primaryEnergyKwh: number): Promise<EnergyMetrics> {
+  const params = new URLSearchParams({ gradeCode, primaryEnergyKwh: String(primaryEnergyKwh) });
+  const res = await fetch(`/api/energy-cost?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`/api/energy-cost error: ${res.status}`);
+  }
+  return res.json() as Promise<EnergyMetrics>;
 }

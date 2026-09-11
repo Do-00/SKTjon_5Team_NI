@@ -30,9 +30,12 @@ cd beec
 `src/lib/beec-client.ts`를 씁니다. 서버 쪽만 다른 주소를 쓰려면
 `BEEC_API_BASE_URL=...`을 추가로 넣으세요.
 
-메인 성적표의 연간 난방비·절감 여지는 beec에 아직 없는
-`/api/energy-cost`를 개발 모드의 MSW(`src/mocks/handlers.ts`의
-`EXAMPLE_ENERGY_COST`)가 예시 값으로 대신 응답합니다.
+메인 성적표의 연간 난방비·절감 여지는 beec에 아직 없는 값이라, 우리 앱 자체의
+같은 오리진 라우트 `src/app/api/energy-cost`가 예시 값을 대신 응답합니다
+(등급별 예시 표는 그 파일 안에 있어요). 예전엔 MSW가 beec 주소로 나가는
+요청을 가로채는 방식이었는데, 브라우저가 Service Worker 등록에 실패하면
+"개선 후" 탭과 절감액 카드가 통째로 사라지는 문제가 있어서 일반 라우트
+핸들러로 바꿨습니다.
 
 주소 검색(`searchBuildings`)은 먼저 beec의 `/api/match`(동+번지 실측 데이터)를
 시도하고, 매칭이 없거나 beec가 꺼져 있으면 `src/data/buildings.ts`의
