@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Icon } from "@/src/components/ui";
 import { encodeAddressId } from "@/src/lib/address-id";
+import { withApartmentChecklistParams, type ApartmentChecklistAnswers } from "@/src/lib/apartment-checklist";
 import { matchPostcodeAddress, toJibunAddress } from "@/src/lib/eco-api";
 import { toSelectedAddress, type KakaoPostcodeData } from "@/src/lib/kakao-postcode";
 import { rememberLastSearch, searchHref } from "@/src/lib/last-search";
@@ -49,7 +50,7 @@ export function HomeHero() {
 
   const address = picked ? toSelectedAddress(picked) : "";
 
-  async function handleSelect(data: KakaoPostcodeData) {
+  async function handleSelect(data: KakaoPostcodeData, checklist: ApartmentChecklistAnswers) {
     const requestId = ++latestRequest.current;
     setPicked(data);
     setStatus("loading");
@@ -63,7 +64,9 @@ export function HomeHero() {
       rememberLastSearch(jibunAddress);
       if (match.found) {
         // The 건물명 rides inside the id, so the report and the guide resolve the same building on multi-building lots.
-        router.push(`/report/${encodeAddressId(jibunAddress, data.buildingName)}`);
+        // 체크리스트 답변(준공연도·건설사·난방방식)은 쿼리스트링으로 실어 보낸다 —
+        // beec가 아직 이 값들을 못 받아서, 성적표 페이지가 참고용으로만 보여준다.
+        router.push(withApartmentChecklistParams(`/report/${encodeAddressId(jibunAddress, data.buildingName)}`, checklist));
       } else {
         router.push(searchHref(jibunAddress));
       }
