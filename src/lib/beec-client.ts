@@ -124,3 +124,47 @@ export async function estimateReport(
 ): Promise<ReportEstimate> {
   return beecGet<ReportEstimate>("/api/report", { purpose, region, sizeBucket });
 }
+
+export interface SimulateStep {
+  code: string;
+  title: string;
+  reductionPct: number;
+  from: number;
+  to: number;
+}
+
+export interface SimulateResult {
+  found: boolean;
+  message?: string;
+  purpose?: string;
+  baseEnergy?: number;
+  energy?: number;
+  unit?: string;
+  savedEnergy?: number;
+  savedPct?: number;
+  /** Grade code without the `"등급"` suffix (unlike `MatchResult`/`ReportEstimate`) — matches `GradeCode` directly. */
+  gradeCodeBefore?: string;
+  gradeBefore?: string;
+  gradeCode?: string;
+  grade?: string;
+  gradeUp?: number;
+  applied?: string[];
+  steps?: SimulateStep[];
+}
+
+/**
+ * What-if 시뮬레이터 (`/api/simulate`): applies `measureCodes` (beec's 6
+ * improvement measures — see `Measure.java`, e.g. `"WIN"`, `"WAL"`) to
+ * `baseEnergy` multiplicatively and returns the resulting grade/energy.
+ */
+export async function simulateWhatIf(
+  baseEnergy: number,
+  measureCodes: string[],
+  purpose: string,
+): Promise<SimulateResult> {
+  return beecGet<SimulateResult>("/api/simulate", {
+    baseEnergy: String(baseEnergy),
+    measures: measureCodes.join(","),
+    purpose,
+  });
+}

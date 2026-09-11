@@ -1,0 +1,90 @@
+### 에코체크 백엔드 API 점검용
+### IntelliJ 에서 이 파일을 열고 각 요청 왼쪽 초록 화살표를 누르면 바로 실행됩니다.
+### 서버가 8080 에 떠 있어야 합니다.
+
+### ─────────────────────────────────────────
+### 1. 성적표 (①)
+### ─────────────────────────────────────────
+
+### 정상 조회 — 서울 주거용
+GET http://localhost:8080/api/report?region=서울&purpose=주거용&sizeBucket=unknown
+
+### 완화 사다리 확인 — 없는 시도를 넣어도 값이 나와야 합니다
+### groupKey 가 요청한 것과 다르게 나오면 사다리가 동작한 것입니다
+GET http://localhost:8080/api/report?region=없는시도&purpose=주거용&sizeBucket=unknown
+
+### 비주거용
+GET http://localhost:8080/api/report?region=서울&purpose=주거용 이외&sizeBucket=large
+
+### ─────────────────────────────────────────
+### 2. 동네 비교 (④)
+### ─────────────────────────────────────────
+
+### districtGroups 키는 "{시도} {시군구}" 형식입니다
+GET http://localhost:8080/api/district?name=서울 은평구
+
+### ─────────────────────────────────────────
+### 3. 주소 실측 매칭
+### ─────────────────────────────────────────
+
+### 카카오 우편번호 서비스의 oncomplete 결과를 그대로 넘기면 됩니다
+GET http://localhost:8080/api/match?jibunAddress=강서구 화곡동 23-191
+
+### 건물명으로만 약하게 시도
+GET http://localhost:8080/api/match?buildingName=마곡
+
+### ─────────────────────────────────────────
+### 4. 개선 항목 목록 (②③ 공용)
+### ─────────────────────────────────────────
+
+### 6개가 나와야 합니다
+### WAL 0.18 · WIN 0.15 · HRV 0.10 · BOI 0.09 · ROF 0.08 · LED 0.04
+GET http://localhost:8080/api/measures
+
+### ─────────────────────────────────────────
+### 5. What-if 시뮬레이터 (③)
+### ─────────────────────────────────────────
+
+### 창호 + 외벽 → 222.7 에서 155.2 로, 3등급 → 2등급, 30% 절감
+### 절감률은 합산이 아니라 곱셈입니다 (222.7 x 0.85 x 0.82)
+GET http://localhost:8080/api/simulate?baseEnergy=222.7&measures=WIN,WAL&purpose=주거용
+
+### 데모용 — 2단계 상승이 나오는 조합
+### 207.3 → 131.5, 3등급 → 1등급, 37% 절감
+GET http://localhost:8080/api/simulate?baseEnergy=207.3&measures=WIN,WAL,BOI&purpose=주거용
+
+### 비주거용은 등급 기준표가 다릅니다
+### 161.3 → 101.3, 1+등급 → 1++등급
+GET http://localhost:8080/api/simulate?baseEnergy=161.3&measures=WAL,WIN,HRV&purpose=주거용 이외
+
+### 모르는 코드는 조용히 무시됩니다 → WIN 만 적용
+GET http://localhost:8080/api/simulate?baseEnergy=222.7&measures=XXX,WIN
+
+### baseEnergy 가 없으면 found:false 와 안내 문구
+GET http://localhost:8080/api/simulate?measures=WIN
+
+### 프론트는 POST 를 쓰면 됩니다
+POST http://localhost:8080/api/simulate
+Content-Type: application/json
+
+{
+  "baseEnergy": 222.7,
+  "measureCodes": ["WIN", "WAL"],
+  "purpose": "주거용"
+}
+
+### ─────────────────────────────────────────
+### 6. 유형별 우선순위 코치 (②)
+### ─────────────────────────────────────────
+
+### 소유주 — WAL 이 1위
+GET http://localhost:8080/api/actions?userType=owner&baseEnergy=222.7
+
+### 임차인 — WIN 이 1위로 올라오고 headline 문구가 바뀝니다
+GET http://localhost:8080/api/actions?userType=tenant&baseEnergy=222.7
+
+### 취약계층 — LED 가 1위
+GET http://localhost:8080/api/actions?userType=general&baseEnergy=222.7
+
+### 입주자대표회의 — 공용부 항목이 위로
+GET http://localhost:8080/api/actions?userType=hoa&baseEnergy=222.7
