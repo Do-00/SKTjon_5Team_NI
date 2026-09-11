@@ -23,6 +23,10 @@ public class SeedDataService {
     // "완전히 같은 키"끼리만 비교하니 문자열 부분포함으로 인한 오매칭도 사라진다.
     private Map<String, List<BuildingRecord>> buildingsByDongJibunKey;
 
+    /** 용도별 동네 통계. "전체" · "주거용" · "주거용 이외" 세 벌을 들고 있습니다. */
+    private Map<String, Map<String, DistrictInfo>> districtByPurpose;
+
+
     public SeedDataService(JsonMapper jsonMapper) {
         this.jsonMapper = jsonMapper;
     }
@@ -32,6 +36,21 @@ public class SeedDataService {
         try (InputStream is = new ClassPathResource("seed.json").getInputStream()) {
             seedData = jsonMapper.readValue(is, SeedData.class);
         }
+
+        // seed.json 의 region 오류를 여기서 바로잡고 districtGroups 를 다시 만듭니다.
+        // 파일은 건드리지 않습니다. 자세한 내용은 RegionFixer 주석 참고.
+        RegionFixer.Result fix = RegionFixer.apply(seedData.getBuildings(), seedData.getDistrictGroups());
+        System.out.println("[RegionFixer] region 보정 " + fix.corrected() + "건"
+                + " (주소 " + fix.byAddress() + " · 시군구사전 " + fix.byLookup() + " · 기존유지 " + fix.kept() + ")"
+                + " / districtGroups " + fix.districtGroups() + "개 재생성");
+        districtByPurpose = RegionFixer.buildByPurpose(seedData.getBuildings());
+        System.out.println("[RegionFixer] 용도별 동네 통계 — 전체 "
+                + districtByPurpose.getOrDefault("전체", Map.of()).size() + " · 주거용 "
+                + districtByPurpose.getOrDefault("주거용", Map.of()).size() + " · 비주거용 "
+                + districtByPurpose.getOrDefault("주거용 이외", Map.of()).size());
+
+        int groupCount = RegionFixer.rebuildGroups(seedData.getBuildings(), seedData.getGroups());
+        System.out.println("[RegionFixer] groups " + groupCount + "개 재생성 (보정된 시도 기준)");
 
         buildingsByDongJibunKey = new HashMap<>();
         for (BuildingRecord b : seedData.getBuildings()) {
@@ -96,6 +115,31 @@ public class SeedDataService {
 
     public DistrictInfo findDistrictGroup(String district) {
         return seedData.getDistrictGroups().get(district);
+    }
+
+    /**
+     * 용도를 지정한 동네 조회.
+     * purpose 가 null·빈 값·"전체" 면 용도를 섞은 값을 돌려주므로 기존 findDistrictGroup 과 같습니다.
+     */
+    public DistrictInfo findDistrictGroup(String district, String purpose) {
+        return districtGroupsOf(purpose).get(district);
+    }
+
+    /** 동네 전체. 지도(④)가 한 번에 다 받아가기 위한 것입니다. */
+    public Map<String, DistrictInfo> allDistrictGroups() {
+        return seedData.getDistrictGroups();
+    }
+
+    /**
+     * 용도별 동네 통계.
+     * purpose 가 null 이거나 "전체" 면 용도를 섞은 것을 돌려줍니다.
+     * "비주거용" 으로 들어와도 실제 키인 "주거용 이외" 로 바꿔 찾습니다.
+     */
+    public Map<String, DistrictInfo> districtGroupsOf(String purpose) {
+        if (districtByPurpose == null) return seedData.getDistrictGroups();
+        String p = (purpose == null || purpose.isBlank()) ? "전체" : normalizePurpose(purpose);
+        Map<String, DistrictInfo> hit = districtByPurpose.get(p);
+        return hit != null ? hit : districtByPurpose.getOrDefault("전체", seedData.getDistrictGroups());
     }
 
     /**
