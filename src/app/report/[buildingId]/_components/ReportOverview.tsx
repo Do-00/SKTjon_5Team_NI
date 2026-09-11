@@ -77,10 +77,25 @@ export function ReportOverview({
     "--tab-accent-fg": getGradeOnColor(displayGrade),
   } as CSSProperties;
 
+  /**
+   * 라벨을 실제 계산 내용에 맞춥니다.
+   *
+   * 「연간 난방비」 였는데, 이 값의 출처인 1차에너지소요량은 한국에너지공단 평가방법상
+   * 난방·냉방·급탕·조명·환기를 **모두 합한** 값입니다. 난방은 그중 일부(국내 아파트 기준 절반 남짓)라
+   * 난방비라고 부르면 두 배 가까이 부풀려 말하는 셈이 됩니다. → 「연간 에너지 비용」
+   *
+   * 「절감 여지」 도 마찬가지입니다. 계산식이 (현재값 − 60) ÷ 현재값 인데 60은 1+++등급 상한,
+   * 즉 패시브 수준입니다. 사용자가 할 수 있는 개선이 아니라 "재건축했을 때의 이론적 최대" 라서
+   * 아래 «권장 조치를 모두 실천하면 N만원 절감» 과 전혀 다른 것을 가리킵니다. → 「개선 여력」
+   *
+   * 수식 자체를 바로잡으려면 1차에너지환산계수를 걷어내고 용도별로 분해해야 하는데,
+   * 그건 고시 별표를 확인해야 하는 작업이라 다음 단계로 남겨 둡니다.
+   * 지금은 최소한 **이름이 내용과 어긋나지 않게** 합니다.
+   */
   const metricCards: { icon: IconName; label: string; value: string }[] = metrics
     ? [
-        { icon: "thermometer", label: "연간 난방비", value: formatManwon(metrics.annualEnergyCostManwon) },
-        { icon: "trending-down", label: "절감 여지", value: formatPercent(metrics.percentileRank) },
+        { icon: "thermometer", label: "연간 에너지 비용", value: formatManwon(metrics.annualEnergyCostManwon) },
+        { icon: "trending-down", label: "개선 여력", value: formatPercent(metrics.percentileRank) },
         { icon: "droplet", label: "연간 탄소 배출", value: formatTonsCO2(metrics.annualCarbonEmissionTons) },
       ]
     : [];
@@ -158,6 +173,58 @@ export function ReportOverview({
                   </li>
                 ))}
               </ul>
+
+              {/*
+                위 세 숫자는 공공데이터에 적힌 값이 아니라 계산값입니다.
+                그리고 계산식에 알려진 한계가 셋 있습니다(용도 혼합 · 1차에너지 과대 · 이론적 최대).
+                숨기면 "난방비를 부풀렸다" 가 되고, 적어 두면 "근사치임을 밝힌 것" 이 됩니다.
+                발표에서 먼저 말할 내용이기도 하니 화면에도 그대로 적습니다.
+              */}
+              <details className="mt-[var(--space-3)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--surface-sunken)] px-4 py-3">
+                <summary className="cursor-pointer text-[length:var(--text-caption-size)] font-bold text-[var(--text-body)]">
+                  이 숫자는 어떻게 계산했나요?
+                </summary>
+
+                <div className="mt-[var(--space-3)] flex flex-col gap-[var(--space-3)] text-[length:var(--text-caption-size)] leading-[1.7] text-[var(--text-muted)]">
+                  <p>
+                    세 값 모두 <strong className="font-bold text-[var(--text-body)]">1차에너지소요량</strong>에
+                    평균 단가(110원/kWh)와 난방 방식별 온실가스 배출계수를 곱해 계산한 추정치입니다. 공공데이터에
+                    그대로 적혀 있는 값이 아닙니다.
+                  </p>
+
+                  <ul className="flex flex-col gap-2">
+                    <li className="flex gap-2">
+                      <span aria-hidden className="text-[var(--teal-600)]">·</span>
+                      <span>
+                        <strong className="font-bold text-[var(--text-body)]">난방비가 아니라 전체 에너지 비용입니다.</strong>{" "}
+                        1차에너지소요량은 난방·냉방·급탕·조명·환기를 모두 합한 값이라, 난방만 따로 떼면 이보다
+                        작습니다.
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span aria-hidden className="text-[var(--teal-600)]">·</span>
+                      <span>
+                        <strong className="font-bold text-[var(--text-body)]">실제 고지서보다 크게 나옵니다.</strong>{" "}
+                        1차에너지는 발전·수송 손실까지 거슬러 올라간 값이고, 요금은 최종 소비 에너지 기준으로
+                        부과됩니다.
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span aria-hidden className="text-[var(--teal-600)]">·</span>
+                      <span>
+                        <strong className="font-bold text-[var(--text-body)]">개선 여력은 이론적 최대입니다.</strong>{" "}
+                        최고 등급(1+++) 수준까지 낮췄을 때를 가정한 값이라, 실제로 실천 가능한 절감액은 아래
+                        「권장 조치」 쪽 숫자를 보세요.
+                      </span>
+                    </li>
+                  </ul>
+
+                  <p>
+                    용도별로 나누고 1차에너지 환산을 걷어내는 작업은 다음 단계 과제입니다. 지금은 건물 간 비교와
+                    규모 감을 잡는 용도로만 봐 주세요.
+                  </p>
+                </div>
+              </details>
             </TabPanel>
 
             <TabPanel value="after" className="focus:outline-none">

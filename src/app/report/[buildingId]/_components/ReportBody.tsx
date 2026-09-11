@@ -20,6 +20,14 @@ export interface ReportBodyProps {
    * — or fall back to the same example table when MSW isn't running.
    */
   fetchLiveMetrics: boolean;
+  /**
+   * "개별난방" · "지역난방" · "중앙난방".
+   *
+   * 탄소 배출 계산에 씁니다. 넘기지 않으면 전력 배출계수로 계산되는데,
+   * 이 서비스가 다루는 아파트의 68%가 도시가스 개별난방이라
+   * 생략하면 배출량이 두 배 넘게 부풀려집니다.
+   */
+  heatingType?: string;
   /** Rendered between the AI comment and the savings card (the grade scale). */
   children?: ReactNode;
 }
@@ -30,7 +38,7 @@ export interface ReportBodyProps {
  * and the savings card wait for that fetch so they're generated from the
  * real figures rather than flashing the "준비 중" state.
  */
-export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics, children }: ReportBodyProps) {
+export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics, heatingType, children }: ReportBodyProps) {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(initialMetrics);
   const [ready, setReady] = useState(!fetchLiveMetrics);
   const { grade, primaryEnergyKwh, buildingId } = overview;
@@ -39,7 +47,7 @@ export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics
   useEffect(() => {
     if (!fetchLiveMetrics) return;
     let cancelled = false;
-    fetchEnergyCost(grade, primaryEnergyKwh, areaSqm)
+    fetchEnergyCost(grade, primaryEnergyKwh, areaSqm, heatingType)
       .then((data) => {
         if (!cancelled) setMetrics(data);
       })
@@ -53,7 +61,7 @@ export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics
     return () => {
       cancelled = true;
     };
-  }, [fetchLiveMetrics, grade, primaryEnergyKwh, areaSqm]);
+  }, [fetchLiveMetrics, grade, primaryEnergyKwh, areaSqm, heatingType]);
 
   return (
     <>

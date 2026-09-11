@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { Card, Notice } from "@/src/components/ui";
 import { GradeScale } from "@/src/components/domain";
+import { DistrictMap } from "@/src/components/domain/DistrictMap";
+import districtCoords from "@/src/data/district-coords.json";
 import { getBuildingById, type ApartmentReportInfo, type BuildingSummary, type LiveMatchInfo } from "@/src/data/buildings";
 import { getEcoCheckReport } from "@/src/data/account";
 import { PRIMARY_ENERGY_UNIT } from "@/src/data/grades";
@@ -137,6 +139,20 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
   const live = building.liveMatch;
   const estimate = building.estimate;
 
+  /**
+   * 지도에서 강조할 동네.
+   *
+   * 출처가 셋이라 순서대로 봅니다.
+   *   apartment  K-apt 단지 → 시군구가 확실합니다
+   *   live       /api/match 실측 → district 가 옵니다
+   *   그 외      주소에서 "OO구" 를 뽑습니다
+   * 못 찾으면 undefined 로 두면 됩니다. 지도는 강조 없이 전국만 그립니다.
+   */
+  const selectedDistrict =
+    building.apartment?.sgg ??
+    live?.district ??
+    building.address.match(/([가-힣]+[구군시])/)?.[1];
+
   const metaLine = building.apartment
     ? [[building.apartment.sgg, building.apartment.emd].filter(Boolean).join(" "), "공동주택(아파트)"]
         .filter(Boolean)
@@ -202,6 +218,9 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
               : null
           }
           fetchLiveMetrics={live !== undefined || estimate !== undefined || building.apartment !== undefined}
+          // 탄소 배출 계산에 씁니다. 도시가스 난방인데 안 넘기면 전력 계수로 계산돼
+          // 배출량이 두 배 넘게 부풀려집니다.
+          heatingType={building.apartment?.heatingType ?? building.heatingType}
         >
           {checklist ? (
             <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
@@ -228,6 +247,15 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
               hintSize="sm"
             />
             <GradeScale value={building.grade} selectable />
+          </Card>
+
+          <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
+            <SectionHeader
+              title="동네 비교"
+              hint="같은 용도 건물의 인증 실적을 지역끼리 비교합니다. 회색은 인증 사례가 부족해 등급을 매기지 않은 지역입니다."
+              hintSize="sm"
+            />
+            <DistrictMap coords={districtCoords.districts} selected={selectedDistrict} purpose="주거용" />
           </Card>
         </ReportBody>
       </PageSection>

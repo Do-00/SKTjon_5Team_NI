@@ -87,7 +87,22 @@ export function DistrictMap({
   const overlaysRef = useRef<any[]>([]);
 
   /**
-   * 지도 인스턴스는 ref 가 아니라 state 로 둡니다.
+   * 지도 인스턴스의 단일 소유자.
+   *
+   * setMap(prev => prev ?? new kakao.maps.Map(...)) 처럼 updater 안에서 지도를
+   * 만들면 안 됩니다. StrictMode 는 updater 를 두 번 호출하고 이펙트도 두 번
+   * 돌리는데, `new Map(div)` 은 DOM 을 건드리는 부수효과라 같은 div 에 지도가
+   * 두 번 만들어집니다. 나중에 만들어진 쪽이 실제 DOM 을 차지하고, state 에는
+   * 버려진 인스턴스가 남을 수 있습니다. 그러면 오버레이(setMap)와 setBounds 가
+   * 화면에 없는 지도로 가서 — 원이 하나도 안 보이고 시점도 기본값(평양·다롄)에
+   * 머뭅니다. 실제로 그 증상이 났습니다.
+   *
+   * 생성은 이펙트 본문에서 ref 로 한 번만. state 에는 만들어진 값만 넣습니다.
+   */
+  const mapInstanceRef = useRef<any>(null);
+
+  /**
+   * 만들어진 지도를 state 에도 둡니다(소유는 위 ref, 알림은 이 state).
    *
    * ref 에 넣으면 지도가 만들어져도 리렌더가 일어나지 않습니다. 카카오 SDK 는
    * 네트워크에서 받아오는 것이라 거의 항상 /api/districts 응답보다 늦게 준비되는데,
@@ -140,14 +155,32 @@ export function DistrictMap({
     let alive = true;
     loadKakaoSdk(appKey)
       .then(() => {
-        if (!alive || !boxRef.current) return;
-        setMap((prev: any) =>
-          prev ??
-          new window.kakao!.maps.Map(boxRef.current, {
-            center: new window.kakao!.maps.LatLng(36.4, 127.9),
-            level: region ? 9 : 13,
-          }),
-        );
+        const box = boxRef.current;
+        if (!alive || !box) return;
+
+        // 이미 만들어 둔 지도가 있으면 그대로 씁니다(StrictMode 재실행).
+        // 단, 그 지도가 붙어 있던 div 가 지금 화면의 div 가 아니면(컴포넌트가
+        // 실제로 언마운트됐다가 다시 붙은 경우) 버리고 새로 만듭니다.
+        if (mapInstanceRef.current) {
+          const attached = mapInstanceRef.current.getNode?.();
+          if (!attached || attached === box || box.contains(attached)) {
+            setMap(mapInstanceRef.current);
+            return;
+          }
+          overlaysRef.current.forEach((o) => o.setMap(null));
+          overlaysRef.current = [];
+          mapInstanceRef.current = null;
+        }
+
+        const kakao = window.kakao;
+        if (!kakao?.maps) return;
+
+        const instance = new kakao.maps.Map(box, {
+          center: new kakao.maps.LatLng(36.4, 127.9),
+          level: region ? 9 : 13,
+        });
+        mapInstanceRef.current = instance;
+        setMap(instance);
       })
       .catch(() => alive && setMapFailed(true));
     return () => {
@@ -270,13 +303,24 @@ export function DistrictMap({
 }
 
 function Legend({ ranked, gray }: { ranked: number; gray: number }) {
+  /**
+   * 등급 10단계를 전부 적습니다.
+   *
+   * 예전에는 7개만 골라 찍었는데(1++·4·6 누락), 색 스케일은 10단계라서
+   * 지도에 있는 색이 범례에 없는 상태가 됩니다. "1++는 어디 갔냐"는
+   * 질문이 실제로 나왔습니다. 범례는 색을 읽는 표이니 빠짐이 없어야 합니다.
+   * rank 는 district-scale.ts 의 SCALE 인덱스와 1:1 입니다.
+   */
   const steps = [
     { code: "1+++", rank: 1 },
+    { code: "1++", rank: 2 },
     { code: "1+", rank: 3 },
     { code: "1", rank: 4 },
     { code: "2", rank: 5 },
     { code: "3", rank: 6 },
+    { code: "4", rank: 7 },
     { code: "5", rank: 8 },
+    { code: "6", rank: 9 },
     { code: "7", rank: 10 },
   ];
   return (

@@ -62,11 +62,22 @@ export function matchPostcodeAddress(data: KakaoPostcodeData): Promise<MatchResu
  * "개선 후" tab and savings card would silently disappear whenever
  * registration failed.
  */
-export async function fetchEnergyCost(gradeCode: string, primaryEnergyKwh: number, areaSqm: number): Promise<EnergyMetrics> {
+export async function fetchEnergyCost(
+  gradeCode: string,
+  primaryEnergyKwh: number,
+  areaSqm: number,
+  /**
+   * "개별난방" · "지역난방" · "중앙난방". 넘기면 난방 방식에 맞는 배출계수를 씁니다.
+   * 생략하면 전력 계수로 계산해 탄소 배출이 크게(보수적으로) 나옵니다 —
+   * 도시가스 난방인데 생략하면 두 배 넘게 부풀려지므로 가능하면 꼭 넘기세요.
+   */
+  heatingType?: string,
+): Promise<EnergyMetrics> {
   const params = new URLSearchParams({
     gradeCode,
     primaryEnergyKwh: String(primaryEnergyKwh),
     areaSqm: String(areaSqm),
+    ...(heatingType ? { heatingType } : {}),
   });
   const res = await fetch(`/api/energy-cost?${params.toString()}`, { cache: "no-store" });
   if (!res.ok) {
