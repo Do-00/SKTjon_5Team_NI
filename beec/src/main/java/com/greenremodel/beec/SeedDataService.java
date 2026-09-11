@@ -6,12 +6,22 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class SeedDataService {
 
     private final JsonMapper jsonMapper;
     private SeedData seedData;
+
+    // 건물 자신의 주소에서 뽑은 동+번지 키 -> 그 키를 가진 건물들 (동일 지번 여러 동/호 대응)
+    // 시작 시 한 번만 만들어두면 매 요청마다 전체 건물을 훑을 필요가 없고,
+    // "완전히 같은 키"끼리만 비교하니 문자열 부분포함으로 인한 오매칭도 사라진다.
+    private Map<String, List<BuildingRecord>> buildingsByDongJibunKey;
 
     public SeedDataService(JsonMapper jsonMapper) {
         this.jsonMapper = jsonMapper;
@@ -22,9 +32,21 @@ public class SeedDataService {
         try (InputStream is = new ClassPathResource("seed.json").getInputStream()) {
             seedData = jsonMapper.readValue(is, SeedData.class);
         }
+
+        buildingsByDongJibunKey = new HashMap<>();
+        for (BuildingRecord b : seedData.getBuildings()) {
+            String key = AddressUtil.extractDongJibunKey(b.getAddress());
+            if (key != null) {
+                buildingsByDongJibunKey.computeIfAbsent(key, k -> new ArrayList<>()).add(b);
+            }
+        }
+
+        long matchableCount = buildingsByDongJibunKey.values().stream().mapToLong(List::size).sum();
         System.out.println("seed.json 로드 완료. 지역그룹 수: " + seedData.getGroups().size()
                 + " / 구단위그룹 수: " + seedData.getDistrictGroups().size()
-                + " / 건물 수: " + seedData.getBuildings().size());
+                + " / 건물 수: " + seedData.getBuildings().size()
+                + " / 주소매칭 인덱싱된 건물 수: " + matchableCount
+                + " / 동일키 그룹 수: " + buildingsByDongJibunKey.size());
     }
 
     private String normalizePurpose(String purpose) {
@@ -42,9 +64,12 @@ public class SeedDataService {
     }
 
     /**
-     * 주소 기반 실측 매칭. 동+번지가 정확히 겹치면 그걸 우선 반환.
-     * 같은 동+번지에 예비인증/본인증이 둘 다 있으면 확정된 본인증을 우선한다.
-     * 동+번지 매칭이 전혀 없으면 건물명 부분일치로 약하게라도 시도한다.
+     * 주소 기반 실측 매칭.
+     * 1) 검색 주소에서 동+번지 키를 뽑아 "완전히 같은 키"를 가진 건물들만 후보로 삼는다
+     *    (부분포함 검사가 아니라 정확히 같은 키 비교라서, "345-2"가 "345-24"에 잘못 걸리는 일이 없다).
+     * 2) 후보가 여러 개(같은 지번에 동/호수가 여러 개인 단지 등)면 buildingName으로 먼저 좁힌다.
+     * 3) 그래도 여러 개면 확정된 본인증을 우선한다. 그것도 없으면 첫 번째 후보.
+     * 4) 동+번지 키 자체를 못 뽑았거나 매칭되는 후보가 없으면, 건물명 부분일치로 약하게 시도한다.
      */
     public BuildingRecord findBuildingByAddress(String jibunAddress, String roadAddress, String buildingName) {
         String key = AddressUtil.extractDongJibunKey(jibunAddress);
@@ -52,22 +77,35 @@ public class SeedDataService {
             key = AddressUtil.extractDongJibunKey(roadAddress);
         }
 
-        BuildingRecord bestMatch = null;
-        BuildingRecord weakCandidate = null;
+        List<BuildingRecord> candidates = key != null
+                ? buildingsByDongJibunKey.getOrDefault(key, List.of())
+                : List.of();
 
-        for (BuildingRecord b : seedData.getBuildings()) {
-            boolean addressMatch = key != null && AddressUtil.normalize(b.getAddress()).contains(key);
-            if (addressMatch) {
-                if (bestMatch == null || "본인증".equals(b.getCertKind())) {
-                    bestMatch = b;
+        if (!candidates.isEmpty()) {
+            if (buildingName != null && !buildingName.isBlank()) {
+                String normName = AddressUtil.normalize(buildingName);
+                List<BuildingRecord> nameFiltered = candidates.stream()
+                        .filter(b -> b.getName() != null && AddressUtil.normalize(b.getName()).contains(normName))
+                        .collect(Collectors.toList());
+                if (!nameFiltered.isEmpty()) {
+                    candidates = nameFiltered;
                 }
-            } else if (buildingName != null && !buildingName.isBlank()
-                    && b.getName() != null
-                    && AddressUtil.normalize(b.getName()).contains(AddressUtil.normalize(buildingName))
-                    && weakCandidate == null) {
-                weakCandidate = b;
+            }
+            return candidates.stream()
+                    .filter(b -> "본인증".equals(b.getCertKind()))
+                    .findFirst()
+                    .orElse(candidates.get(0));
+        }
+
+        // 동+번지로 전혀 못 찾았을 때만 건물명 부분일치로 약하게 시도
+        if (buildingName != null && !buildingName.isBlank()) {
+            String normName = AddressUtil.normalize(buildingName);
+            for (BuildingRecord b : seedData.getBuildings()) {
+                if (b.getName() != null && AddressUtil.normalize(b.getName()).contains(normName)) {
+                    return b;
+                }
             }
         }
-        return bestMatch != null ? bestMatch : weakCandidate;
+        return null;
     }
 }
