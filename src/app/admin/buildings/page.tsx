@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * for the prototype and are noted as upcoming below.
  */
 export default async function AdminBuildingsPage() {
-  const buildings = await searchBuildings();
+  const { buildings } = await searchBuildings();
 
   return (
     <AdminShell

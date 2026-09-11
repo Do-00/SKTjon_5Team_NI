@@ -44,6 +44,7 @@ export const ICON_NAMES = [
   "badge-check",
   "circle-check",
   "triangle-alert",
+  "sparkles",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -256,6 +257,11 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
       <path d="M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  sparkles: (
+    <>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.34 6.34l2.83 2.83M14.83 14.83l2.83 2.83M6.34 17.66l2.83-2.83M14.83 9.17l2.83-2.83" />
     </>
   ),
 };

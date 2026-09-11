@@ -1,4 +1,5 @@
 import { CURRENT_BUILDING_GRADE, type GradeCode } from "./grades";
+import { matchAddress, toGradeCode, type MatchResult } from "../lib/beec-client";
 
 /**
  * Building fixtures for the Eco Check prototype: address search results and
@@ -160,38 +161,144 @@ const CANONICAL_QUERY_VARIANTS: readonly string[] = [
   normalizeForComparison(SEARCH_RESULTS[0].address),
 ];
 
+/** Prefix marking a `BuildingSummary.id` as a live beec match rather than a `SEARCH_RESULTS` fixture id. */
+const ADDRESS_ID_PREFIX = "addr-";
+
+/** Packs a searched address into a route-safe `/report/[buildingId]` segment beec can look up again. */
+function encodeAddressId(address: string): string {
+  return `${ADDRESS_ID_PREFIX}${Buffer.from(address, "utf-8").toString("base64url")}`;
+}
+
+/** Unpacks an `encodeAddressId` id back to the original address, or `null` for a fixture id like `"bld-001"`. */
+function decodeAddressId(id: string): string | null {
+  if (!id.startsWith(ADDRESS_ID_PREFIX)) return null;
+  try {
+    return Buffer.from(id.slice(ADDRESS_ID_PREFIX.length), "base64url").toString("utf-8");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Building-register fields beec's `/api/match` doesn't return (준공연도,
+ * 구조, 연면적, 난방방식, 단열기준 — that's the separate 건축HUB integration,
+ * still on the TODO list). Kept as fixed placeholders so a live match still
+ * renders a complete report card instead of a half-empty one.
+ */
+const PLACEHOLDER_BUILDING_DETAILS = {
+  completionYear: 1998,
+  structureType: "철근콘크리트구조",
+  insulationStandard: "1987년 단열기준 적용",
+  areaSqm: 84,
+  heatingType: "개별 도시가스",
+} as const;
+
+/** Maps a beec `/api/match` hit onto the `BuildingSummary` shape the rest of the app already renders. */
+function toBuildingSummary(address: string, match: MatchResult): BuildingSummary {
+  const grade = toGradeCode(match.grade) ?? CURRENT_BUILDING_GRADE;
+  const isCertified = match.certKind === "본인증" || match.certKind === "예비인증";
+
+  return {
+    id: encodeAddressId(address),
+    name: match.name || address,
+    address,
+    grade,
+    distanceMeters: 0,
+    gradeSource: isCertified ? "certified" : "estimated",
+    primaryEnergyKwh: match.energyValue ?? 0,
+    useType: match.purpose ?? "정보 없음",
+    ...PLACEHOLDER_BUILDING_DETAILS,
+    certificationHistory: isCertified
+      ? [
+          {
+            grade,
+            primaryEnergyKwh: match.energyValue ?? 0,
+            certifiedAt: `${PLACEHOLDER_BUILDING_DETAILS.completionYear}-01-01`,
+            certId: match.certKind ?? "정보 없음",
+            issuer: "한국에너지공단",
+          },
+        ]
+      : [],
+  };
+}
+
+export interface SearchOutcome {
+  buildings: BuildingSummary[];
+  /**
+   * `true` when beec was actually reachable and explicitly returned
+   * `found: false` for this address — the documented signal to switch the
+   * UI over to the 용도·지역·규모 등급 추정 flow (`/api/report`), rather than
+   * a plain "no results" message. `false` for the no-query listing, a real
+   * match, and the beec-unreachable fixture fallback below.
+   */
+  offerEstimateFallback: boolean;
+}
+
 /**
  * Searches buildings by name or address.
  *
- * The canonical geocoded query — `"월드컵로 120"`, with or without the
- * `"서울특별시 마포구"` prefix — is treated as an address lookup and returns
- * every nearby fixture (`SEARCH_RESULTS`), ordered by distance, mirroring how
- * a real address search returns nearby buildings rather than only the one
- * exact street-number match. Any other query (a building name, or a more
- * specific address such as `"월드컵로 96"`) falls back to a case-insensitive
- * substring match against name/address.
+ * Tries the real beec backend's 동+번지 실측 매칭 (`/api/match`) first — a hit
+ * there is real data, not a fixture, and an explicit `found:false` means the
+ * caller should offer the 등급 추정 fallback (see `offerEstimateFallback`).
+ * Only when beec itself is unreachable does this fall back to the fixtures
+ * below so the demo keeps working: the canonical geocoded query —
+ * `"월드컵로 120"`, with or without the `"서울특별시 마포구"` prefix — is
+ * treated as an address lookup and returns every nearby fixture
+ * (`SEARCH_RESULTS`), ordered by distance, mirroring how a real address
+ * search returns nearby buildings rather than only the one exact
+ * street-number match. Any other query (a building name, or a more specific
+ * address such as `"월드컵로 96"`) falls back to a case-insensitive substring
+ * match against name/address.
  */
-export async function searchBuildings(query?: string): Promise<BuildingSummary[]> {
+export async function searchBuildings(query?: string): Promise<SearchOutcome> {
   if (!query || !query.trim()) {
-    return [...SEARCH_RESULTS];
+    return { buildings: [...SEARCH_RESULTS], offerEstimateFallback: false };
+  }
+
+  try {
+    const match = await matchAddress(query);
+    return match.found
+      ? { buildings: [toBuildingSummary(query, match)], offerEstimateFallback: false }
+      : { buildings: [], offerEstimateFallback: true };
+  } catch {
+    // beec isn't reachable — fall through to the fixtures below.
   }
 
   const normalizedQuery = normalizeForComparison(query);
   if (CANONICAL_QUERY_VARIANTS.includes(normalizedQuery)) {
-    return [...SEARCH_RESULTS].sort((a, b) => a.distanceMeters - b.distanceMeters);
+    return {
+      buildings: [...SEARCH_RESULTS].sort((a, b) => a.distanceMeters - b.distanceMeters),
+      offerEstimateFallback: false,
+    };
   }
 
   const needle = query.trim().toLowerCase();
-  return SEARCH_RESULTS.filter(
+  const buildings = SEARCH_RESULTS.filter(
     (building) =>
       building.name.toLowerCase().includes(needle) ||
       building.address.toLowerCase().includes(needle),
   );
+  return { buildings, offerEstimateFallback: false };
 }
 
-/** Returns a single search-result building by id, if it exists. */
+/**
+ * Returns a single building by id: a fixture id (`"bld-001"`) looks up
+ * `SEARCH_RESULTS` directly, while a beec-backed id from `searchBuildings`
+ * (`"addr-…"`) re-queries `/api/match` with the address packed inside it —
+ * beec has no persistent building ids of its own, only address matching.
+ */
 export async function getBuildingById(id: string): Promise<BuildingSummary | undefined> {
-  return SEARCH_RESULTS.find((building) => building.id === id);
+  const address = decodeAddressId(id);
+  if (address === null) {
+    return SEARCH_RESULTS.find((building) => building.id === id);
+  }
+
+  try {
+    const match = await matchAddress(address);
+    return match.found ? toBuildingSummary(address, match) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Returns the current user's saved (bookmarked) buildings. */

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { Badge, ButtonLink, Card, Icon, Notice } from "@/src/components/ui";
-import { GradeScale } from "@/src/components/domain";
+import { AiEnergyComment, GradeScale } from "@/src/components/domain";
 import { getBuildingById, type BuildingSummary } from "@/src/data/buildings";
 import { getEcoCheckReport } from "@/src/data/account";
 import { formatManwon, formatNumber } from "@/src/lib/format";
@@ -66,9 +66,33 @@ export default async function ReportPage({ params }: PageProps<"/report/[buildin
           buildingName={building.name}
           metaLine={`${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`}
           address={building.address}
+          completionYear={building.completionYear}
+          useType={building.useType}
+          primaryEnergyKwh={building.primaryEnergyKwh}
           grade={building.grade}
           isEstimated={isEstimated}
           basisRows={buildBasisRows(building)}
+          metrics={
+            hasFullReport
+              ? {
+                  annualEnergyCostManwon: report.annualEnergyCostManwon,
+                  percentileRank: report.percentileRank,
+                  annualCarbonEmissionTons: report.annualCarbonEmissionTons,
+                  annualSavingsPotentialManwon: report.annualSavingsPotentialManwon,
+                }
+              : null
+          }
+        />
+
+        <AiEnergyComment
+          buildingName={building.name}
+          address={building.address}
+          completionYear={building.completionYear}
+          useType={building.useType}
+          areaSqm={building.areaSqm}
+          grade={building.grade}
+          isEstimated={isEstimated}
+          primaryEnergyKwh={building.primaryEnergyKwh}
           metrics={
             hasFullReport
               ? {

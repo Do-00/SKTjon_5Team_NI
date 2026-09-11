@@ -1,5 +1,7 @@
 export { EnergyGradeBadge } from "./EnergyGradeBadge";
 export type { EnergyGradeBadgeProps, EnergyGradeBadgeSize } from "./EnergyGradeBadge";
+export { AiEnergyComment } from "./AiEnergyComment";
+export type { AiEnergyCommentProps } from "./AiEnergyComment";
 export { GradeScale } from "./GradeScale";
 export type { GradeScaleProps } from "./GradeScale";
 export { getGradeColorVars } from "./grade-tokens";

@@ -29,6 +29,9 @@ interface ReportOverviewProps {
   /** e.g. `"1998년 준공 · 공동주택 · 84㎡"`. */
   metaLine: string;
   address: string;
+  completionYear: number;
+  useType: string;
+  primaryEnergyKwh: number;
   grade: GradeCode;
   isEstimated: boolean;
   basisRows: BasisRow[];
@@ -51,6 +54,9 @@ export function ReportOverview({
   buildingName,
   metaLine,
   address,
+  completionYear,
+  useType,
+  primaryEnergyKwh,
   grade,
   isEstimated,
   basisRows,
@@ -95,7 +101,17 @@ export function ReportOverview({
         ) : null}
 
         <div className="flex w-full flex-col gap-[var(--space-2)]">
-          <ReportActions buildingId={buildingId} buildingName={buildingName} />
+          <ReportActions
+            buildingId={buildingId}
+            buildingName={buildingName}
+            address={address}
+            completionYear={completionYear}
+            useType={useType}
+            grade={grade}
+            isEstimated={isEstimated}
+            primaryEnergyKwh={primaryEnergyKwh}
+            annualSavingsPotentialManwon={metrics?.annualSavingsPotentialManwon ?? null}
+          />
           <p className="text-center text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
             저장하려면 로그인이 필요해요
           </p>

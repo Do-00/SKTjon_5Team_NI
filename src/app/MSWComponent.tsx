@@ -9,16 +9,24 @@ const mockingEnabledPromise =
       if (process.env.NODE_ENV === 'production') {
         return;
       }
-      await worker.start({
-        onUnhandledRequest(request, print) {
-          if (request.url.includes('_next')) {
-            return
-          }
-          print.warning()
-        },
-      })
-      worker.use(...handlers);
-      console.log(worker.listHandlers())
+      // Registration can fail in browsers/contexts that block service
+      // workers (some automation sandboxes, strict privacy modes, etc.).
+      // That should only mean "no request mocking", not a fatal error for
+      // `use()` below — an uncaught rejection here crashes the whole tree.
+      try {
+        await worker.start({
+          onUnhandledRequest(request, print) {
+            if (request.url.includes('_next')) {
+              return
+            }
+            print.warning()
+          },
+        })
+        worker.use(...handlers);
+        console.log(worker.listHandlers())
+      } catch (error) {
+        console.warn('[MSW] Service Worker registration failed, continuing without request mocking.', error)
+      }
     })
     : Promise.resolve()
 
