@@ -9,5 +9,4 @@ public class BeecApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(BeecApplication.class, args);
 	}
-
 }
