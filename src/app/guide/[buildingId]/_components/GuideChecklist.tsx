@@ -2,9 +2,11 @@
 
 import { useId, useMemo, useState } from "react";
 import type { EcoAction } from "@/src/data/actions";
+import type { GradeCode } from "@/src/data/grades";
 import { ActionItem } from "@/src/components/domain/ActionItem";
 import { SectionHeader } from "@/src/components/layout/SectionHeader";
 import { ButtonLink, Card, Checkbox, Icon, Notice, RadioGroup, Select } from "@/src/components/ui";
+import { simulateWhatIf } from "@/src/lib/what-if";
 import { useChecklistStorage } from "../_lib/use-checklist-storage";
 import {
   AUDIENCE_OPTIONS,
@@ -15,10 +17,13 @@ import {
   type BudgetFilter,
   type GuideFilterState,
 } from "../_lib/guide-filters";
+import { WhatIfSimulator } from "./WhatIfSimulator";
 
 export interface GuideChecklistProps {
   buildingId: string;
   actions: EcoAction[];
+  currentGrade: GradeCode;
+  currentPrimaryEnergyKwh: number;
 }
 
 /**
@@ -27,16 +32,26 @@ export interface GuideChecklistProps {
  * `localStorage` (see `useChecklistStorage`). Everything else on the guide
  * page is a plain Server Component.
  */
-export function GuideChecklist({ buildingId, actions }: GuideChecklistProps) {
+export function GuideChecklist({
+  buildingId,
+  actions,
+  currentGrade,
+  currentPrimaryEnergyKwh,
+}: GuideChecklistProps) {
   const [filters, setFilters] = useState<GuideFilterState>(DEFAULT_GUIDE_FILTER_STATE);
   const { completed, toggle, hydrated } = useChecklistStorage(buildingId);
   const budgetSelectId = useId();
   const progressId = useId();
 
   const filteredActions = useMemo(() => filterActions(actions, filters), [actions, filters]);
-  const completedCount = useMemo(
-    () => actions.filter((action) => completed[action.id]).length,
+  const completedActions = useMemo(
+    () => actions.filter((action) => completed[action.id]),
     [actions, completed],
+  );
+  const completedCount = completedActions.length;
+  const whatIfResult = useMemo(
+    () => simulateWhatIf(currentPrimaryEnergyKwh, currentGrade, completedActions),
+    [currentPrimaryEnergyKwh, currentGrade, completedActions],
   );
 
   return (
@@ -79,6 +94,8 @@ export function GuideChecklist({ buildingId, actions }: GuideChecklistProps) {
       </Card>
 
       <div className="flex min-w-0 flex-col gap-[var(--space-5)]">
+        <WhatIfSimulator result={whatIfResult} selectedCount={completedCount} />
+
         <div className="flex flex-col gap-[var(--space-2)]">
           <SectionHeader title="맞춤 절감 하기" hint={`${filteredActions.length}개 조치 · 난이도순`} />
           <p
