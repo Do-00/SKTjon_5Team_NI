@@ -21,7 +21,7 @@ export function buildSiteNav(pathname: string, defaultBuildingId: string, report
       href: reportHref,
       active: isWithin(pathname, "/report") || isWithin(pathname, "/search"),
     },
-    { label: "개선 하기", href: `/guide/${buildingId}`, active: isWithin(pathname, "/guide") },
+    { label: "개선하기", href: `/guide/${buildingId}`, active: isWithin(pathname, "/guide") },
     { label: "지원사업", href: "/programs", active: isWithin(pathname, "/programs") },
     { label: "서비스 소개", href: "/about", active: isWithin(pathname, "/about") },
   ];
