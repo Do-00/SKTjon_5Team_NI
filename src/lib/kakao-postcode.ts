@@ -62,6 +62,9 @@ declare global {
   interface Window {
     kakao?: {
       Postcode?: new (options: KakaoPostcodeOptions) => KakaoPostcode;
+      /** Kakao Maps SDK, loaded separately by `DistrictMap.tsx` — out of this module's scope, left untyped. */
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      maps?: any;
     };
   }
 }

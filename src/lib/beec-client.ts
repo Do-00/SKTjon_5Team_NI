@@ -179,3 +179,101 @@ export async function simulateWhatIf(
     purpose,
   });
 }
+
+/**
+ * 서울 아파트 API (`ApartmentController.java`) — `seed.json`(`/api/match`)과는
+ * 완전히 별개인 서울시 공동주택(K-apt) 데이터셋. 아파트명/도로명으로 찾고,
+ * 인증 실적이 있으면 실측값을, 없으면 또래 기반 추정(신뢰도 게이트를 통과할
+ * 때만)을 돌려준다. 등급 코드는 `GradeTable.codeOf()`가 낸 값이라 `"등급"`
+ * 접미사가 없다 — `MatchResult.grade`와 달리 `toGradeCode()` 변환이 필요 없다.
+ */
+export interface ApartmentSearchItem {
+  aptCode: string;
+  name: string;
+  address: string;
+  sgg: string;
+  emd: string;
+  completionYear: number | null;
+  insulationEra: string | null;
+  households: number | null;
+  certified: boolean;
+}
+
+export interface ApartmentSearchResult {
+  query: string;
+  total: number;
+  count: number;
+  truncated: boolean;
+  items: ApartmentSearchItem[];
+}
+
+/** `/api/apt/search` — 아파트명·주소 부분 일치. `limit` 최대 500(서버 쪽 캡), 여긴 목록용으로 작게 쓴다. */
+export async function searchApartments(q: string, limit = 5): Promise<ApartmentSearchResult> {
+  return beecGet<ApartmentSearchResult>("/api/apt/search", { q, limit: String(limit) });
+}
+
+export interface ApartmentFacts {
+  sgg: string;
+  emd: string;
+  completionYear: number | null;
+  insulationEra: string | null;
+  households: number | null;
+  dongCount: number | null;
+  corridorType: string | null;
+  heatingType: string | null;
+  grossFloorArea: number | null;
+  builder: string | null;
+  complexType: string | null;
+  source: string;
+}
+
+/** 인증 실적이 있는 단지의 실측값 — 추정이 아니다. */
+export interface ApartmentMeasured {
+  energyValue: number;
+  /** `"2등급"`처럼 접미사 포함. */
+  grade: string;
+  /** 접미사 없는 코드 — `GradeCode`에 바로 대입 가능. */
+  gradeCode: string;
+  certCount: number;
+  matchedBy: string | null;
+  labelSource: string | null;
+  precise: boolean;
+  source: string;
+}
+
+/** 또래 기반 추정 — 신뢰도 게이트(`ModelService`)를 통과했을 때만 채워진다. */
+export interface ApartmentEstimate {
+  /** `"point"`면 등급 하나로 말해도 됨, `"range"`면 범위로만. */
+  policy: "point" | "range";
+  energyPredicted: number;
+  energyLow: number;
+  energyHigh: number;
+  marginOfError: number;
+  /** 접미사 없는 코드. */
+  gradeBest: string;
+  gradeWorst: string;
+  /** `policy === "point"`일 때만 값이 있음. */
+  grade: string | null;
+  presentation: string;
+  disclaimer: string;
+}
+
+export interface ApartmentDetail {
+  found: boolean;
+  aptCode?: string;
+  name?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  facts?: ApartmentFacts;
+  /** 인증 실적이 없으면 `null`. */
+  measured?: ApartmentMeasured | null;
+  /** 신뢰도 게이트를 통과 못 했으면 `null` — `estimateSkipped`에 이유가 담긴다. */
+  estimate?: ApartmentEstimate | null;
+  estimateSkipped?: string;
+}
+
+/** `/api/apt/{aptCode}` — facts(확실)/measured(실측)/estimate(추정, null일 수 있음) 세 덩어리를 절대 섞지 않고 돌려준다. */
+export async function getApartmentDetail(aptCode: string): Promise<ApartmentDetail> {
+  return beecGet<ApartmentDetail>(`/api/apt/${encodeURIComponent(aptCode)}`, {});
+}

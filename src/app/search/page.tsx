@@ -42,8 +42,11 @@ function SuggestedQueries({ label }: { label?: string }) {
 export default async function SearchPage(props: PageProps<"/search">) {
   const searchParams = await props.searchParams;
   const query = normalizeQuery(searchParams.q);
+  // 홈 화면에서 넘어온 Kakao 건물명·도로명 — 아파트 API는 지번을 몰라 이걸로 찾는다.
+  const buildingName = normalizeQuery(searchParams.bn);
+  const roadAddress = normalizeQuery(searchParams.ra);
   const hasQuery = query !== undefined;
-  const { buildings: results, offerEstimateFallback } = await searchBuildings(query);
+  const { buildings: results, offerEstimateFallback } = await searchBuildings(query, buildingName, roadAddress);
 
   return (
     <SiteShell>

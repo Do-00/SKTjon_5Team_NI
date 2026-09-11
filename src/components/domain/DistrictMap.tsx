@@ -34,11 +34,7 @@ import { DistrictRanking } from "./DistrictRanking";
  *   카카오 개발자센터 > 앱 설정 > 플랫폼 > Web 에 http://localhost:3000 등록
  */
 
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
+// `window.kakao` is declared in `src/lib/kakao-postcode.ts` (shared with the Postcode SDK).
 
 interface Props {
   /** "서울" 처럼 시도명. 생략하면 전국. */
@@ -59,7 +55,7 @@ function loadKakaoSdk(appKey: string): Promise<void> {
     if (typeof window === "undefined") return reject(new Error("서버에서는 실행되지 않습니다"));
     if (window.kakao?.maps) return resolve();
 
-    const onReady = () => window.kakao.maps.load(() => resolve());
+    const onReady = () => window.kakao!.maps.load(() => resolve());
     const existing = document.getElementById(SDK_ID) as HTMLScriptElement | null;
 
     if (existing) {
@@ -147,8 +143,8 @@ export function DistrictMap({
         if (!alive || !boxRef.current) return;
         setMap((prev: any) =>
           prev ??
-          new window.kakao.maps.Map(boxRef.current, {
-            center: new window.kakao.maps.LatLng(36.4, 127.9),
+          new window.kakao!.maps.Map(boxRef.current, {
+            center: new window.kakao!.maps.LatLng(36.4, 127.9),
             level: region ? 9 : 13,
           }),
         );
@@ -166,7 +162,7 @@ export function DistrictMap({
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
 
-    const bounds = new window.kakao.maps.LatLngBounds();
+    const bounds = new window.kakao!.maps.LatLngBounds();
 
     // 표본이 부족한 동네를 먼저 그려서 뒤로 깔리게 합니다.
     const ordered = [...joined].sort(
@@ -174,7 +170,7 @@ export function DistrictMap({
     );
 
     ordered.forEach((d) => {
-      const pos = new window.kakao.maps.LatLng(d.lat, d.lng);
+      const pos = new window.kakao!.maps.LatLng(d.lat, d.lng);
       bounds.extend(pos);
 
       const isMine = selected != null && d.district === selected;
@@ -208,7 +204,7 @@ export function DistrictMap({
         ? `${d.region} ${d.district} · 인증 사례 부족 (${d.purpose} ${d.sampleCount}건)`
         : `${d.region} ${d.district} · ${d.grade} · ${d.purpose} ${d.sampleCount}건 · ${d.rank}위`;
 
-      const overlay = new window.kakao.maps.CustomOverlay({
+      const overlay = new window.kakao!.maps.CustomOverlay({
         position: pos,
         content: el,
         yAnchor: 0.5,

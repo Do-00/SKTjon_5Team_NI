@@ -1,6 +1,17 @@
 import { CURRENT_BUILDING_GRADE, GRADE_ORDER, type GradeCode } from "./grades";
-import { decodeAddressId, encodeAddressId } from "../lib/address-id";
-import { matchAddress, toGradeCode, type MatchResult } from "../lib/beec-client";
+import { decodeAddressId, decodeEstimateId, encodeAddressId, encodeEstimateId, type EstimateIdParts } from "../lib/address-id";
+import {
+  estimateReport,
+  getApartmentDetail,
+  matchAddress,
+  searchApartments,
+  SIZE_BUCKET_OPTIONS,
+  toGradeCode,
+  type ApartmentDetail,
+  type MatchResult,
+  type ReportEstimate,
+  type SizeBucket,
+} from "../lib/beec-client";
 
 /**
  * Building fixtures for the Eco Check prototype: address search results and
@@ -49,6 +60,10 @@ export interface BuildingSummary {
   certificationHistory: CertificationRecord[];
   /** What beec's `/api/match` actually returned, for live matches only (absent on fixtures). */
   liveMatch?: LiveMatchInfo;
+  /** Set for an `/api/report` group estimate (`est-…` ids) — no single building, just a 용도·지역·규모 statistical stand-in. */
+  estimate?: BuildingEstimateInfo;
+  /** Set for an `/api/apt/{aptCode}` match (`apt-…` ids) — richer facts/measured/estimate than `/api/match` gives. */
+  apartment?: ApartmentReportInfo;
 }
 
 /** Raw `/api/match` fields, so the report shows beec's values instead of the fixture-shaped placeholders. */
@@ -69,6 +84,33 @@ export interface LiveMatchInfo {
   certKind: string;
 }
 
+/** `/api/report`'s group-level estimate, for the `/search` 등급 추정 fallback (`est-…` ids). */
+export interface BuildingEstimateInfo {
+  purpose: string;
+  region: string;
+  /** Korean label for the picked size bucket, e.g. `"소형"`. */
+  sizeLabel: string;
+  sampleCount: number;
+  lowSample: boolean;
+}
+
+/** `/api/apt/{aptCode}`'s facts/measured/estimate, for the apartment API's report card (`apt-…` ids). */
+export interface ApartmentReportInfo {
+  aptCode: string;
+  sgg: string;
+  emd: string;
+  builder: string | null;
+  households: number | null;
+  heatingType: string | null;
+  insulationEra: string | null;
+  /** Which tier the shown grade came from — matters for how the report caveat it. */
+  source: "measured" | "estimated-point" | "estimated-range" | "unknown";
+  /** `estimate.disclaimer` or `estimateSkipped`, shown as-is. */
+  disclaimer?: string;
+  /** `"± N kWh/m²·yr"` for a point estimate. */
+  marginOfError?: number;
+}
+
 export interface SavedBuilding extends BuildingSummary {
   /** ISO 8601 timestamp of when the building was saved to the user's account. */
   savedAt: string;
@@ -76,6 +118,9 @@ export interface SavedBuilding extends BuildingSummary {
 
 /** The address search users canonically enter to reach this fixture set. */
 export const CANONICAL_SEARCH_ADDRESS = "월드컵로 120";
+
+/** Prefix marking a building id as an `/api/apt/{aptCode}` match — apartments have a real persistent id, no encoding needed. */
+const APARTMENT_ID_PREFIX = "apt-";
 
 /** Search results for the address "월드컵로 120" (Mapo-gu, Seoul). */
 const SEARCH_RESULTS: readonly BuildingSummary[] = [
@@ -262,6 +307,142 @@ function toBuildingSummary(
   };
 }
 
+/** Validates a raw (no `"등급"` suffix) grade code from `/api/apt/…`, which uses the same `GradeTable` as `/api/match` but never adds the suffix. */
+function toRawGradeCode(code: string | null | undefined): GradeCode | null {
+  return code && (GRADE_ORDER as readonly string[]).includes(code) ? (code as GradeCode) : null;
+}
+
+/** Maps an `/api/report` group estimate onto the `BuildingSummary` shape (`est-…` ids, no single real building). */
+function toEstimateBuildingSummary(parts: EstimateIdParts, result: ReportEstimate): BuildingSummary {
+  const grade = toGradeCode(result.estimatedGrade) ?? CURRENT_BUILDING_GRADE;
+  const sizeLabel = SIZE_BUCKET_OPTIONS.find((option) => option.value === parts.sizeBucket)?.label ?? parts.sizeBucket;
+
+  return {
+    id: encodeEstimateId(parts),
+    name: parts.address,
+    address: parts.address,
+    grade,
+    distanceMeters: 0,
+    gradeSource: "estimated",
+    primaryEnergyKwh: 0,
+    useType: parts.purpose,
+    ...PLACEHOLDER_BUILDING_DETAILS,
+    certificationHistory: [],
+    estimate: {
+      purpose: parts.purpose,
+      region: parts.region,
+      sizeLabel,
+      sampleCount: result.sampleCount ?? 0,
+      lowSample: result.lowSample ?? false,
+    },
+  };
+}
+
+/** Maps an `/api/apt/{aptCode}` detail onto the `BuildingSummary` shape (`apt-…` ids). Facts are real; only the grade/energy tier (measured → point estimate → range estimate → unknown) varies in confidence. */
+function toApartmentBuildingSummary(detail: ApartmentDetail): BuildingSummary | null {
+  if (!detail.found || !detail.aptCode || !detail.facts) return null;
+  const { facts, measured, estimate } = detail;
+
+  let grade: GradeCode;
+  let primaryEnergyKwh: number;
+  let gradeSource: BuildingGradeSource;
+  let source: ApartmentReportInfo["source"];
+  let disclaimer: string | undefined;
+  let marginOfError: number | undefined;
+
+  if (measured) {
+    grade = toRawGradeCode(measured.gradeCode) ?? CURRENT_BUILDING_GRADE;
+    primaryEnergyKwh = measured.energyValue;
+    gradeSource = "certified";
+    source = "measured";
+  } else if (estimate?.grade) {
+    grade = toRawGradeCode(estimate.grade) ?? CURRENT_BUILDING_GRADE;
+    primaryEnergyKwh = estimate.energyPredicted;
+    gradeSource = "estimated";
+    source = "estimated-point";
+    disclaimer = estimate.disclaimer;
+    marginOfError = estimate.marginOfError;
+  } else if (estimate) {
+    // "range" policy — no single point estimate is reliable enough to name, so
+    // the worst-case bound is shown (never overstates the building) with the
+    // full range left in `disclaimer` for the report to spell out.
+    grade = toRawGradeCode(estimate.gradeWorst) ?? "7";
+    primaryEnergyKwh = estimate.energyHigh;
+    gradeSource = "estimated";
+    source = "estimated-range";
+    disclaimer = `${estimate.disclaimer} (${estimate.energyLow}~${estimate.energyHigh} kWh/m²·yr 범위로만 추정돼요.)`;
+  } else {
+    grade = "7";
+    primaryEnergyKwh = 0;
+    gradeSource = "estimated";
+    source = "unknown";
+    disclaimer = detail.estimateSkipped;
+  }
+
+  return {
+    id: `${APARTMENT_ID_PREFIX}${detail.aptCode}`,
+    name: detail.name ?? detail.aptCode,
+    address: detail.address ?? "",
+    grade,
+    distanceMeters: 0,
+    gradeSource,
+    primaryEnergyKwh,
+    completionYear: facts.completionYear ?? PLACEHOLDER_BUILDING_DETAILS.completionYear,
+    structureType: "철근콘크리트구조",
+    useType: "공동주택(아파트)",
+    insulationStandard: facts.insulationEra ?? PLACEHOLDER_BUILDING_DETAILS.insulationStandard,
+    areaSqm: facts.grossFloorArea ?? PLACEHOLDER_BUILDING_DETAILS.areaSqm,
+    heatingType: facts.heatingType ?? PLACEHOLDER_BUILDING_DETAILS.heatingType,
+    certificationHistory:
+      measured && gradeSource === "certified"
+        ? [
+            {
+              grade,
+              primaryEnergyKwh,
+              certifiedAt: `${facts.completionYear ?? PLACEHOLDER_BUILDING_DETAILS.completionYear}-01-01`,
+              certId: measured.matchedBy ?? "정보 없음",
+              issuer: "한국에너지공단",
+            },
+          ]
+        : [],
+    apartment: {
+      aptCode: detail.aptCode,
+      sgg: facts.sgg,
+      emd: facts.emd,
+      builder: facts.builder,
+      households: facts.households,
+      heatingType: facts.heatingType,
+      insulationEra: facts.insulationEra,
+      source,
+      disclaimer,
+      marginOfError,
+    },
+  };
+}
+
+/**
+ * Tries beec's apartment API for a name/road-address query `/api/match`
+ * (지번 전용) couldn't find. The apartment dataset has no 지번 field at all, so
+ * a jibun-shaped `query` (what `/api/match` wants) almost never matches it —
+ * prefers `buildingName`, then `roadAddress`, falling back to `query` only
+ * when Kakao gave neither (rare, but `/api/apt/search` still might substring-
+ * match a plain query against a name).
+ */
+async function searchApartmentsByQuery(
+  query: string,
+  buildingName?: string,
+  roadAddress?: string,
+): Promise<BuildingSummary[]> {
+  const searchTerm = buildingName?.trim() || roadAddress?.trim() || query;
+  const result = await searchApartments(searchTerm, 5);
+  if (result.count === 0) return [];
+
+  const details = await Promise.all(result.items.map((item) => getApartmentDetail(item.aptCode)));
+  return details
+    .map(toApartmentBuildingSummary)
+    .filter((summary): summary is BuildingSummary => summary !== null);
+}
+
 export interface SearchOutcome {
   buildings: BuildingSummary[];
   /**
@@ -278,32 +459,45 @@ export interface SearchOutcome {
  * Searches buildings by name or address.
  *
  * Tries the real beec backend's 동+번지 실측 매칭 (`/api/match`) first — a hit
- * there is real data, not a fixture, and an explicit `found:false` means the
- * caller should offer the 등급 추정 fallback (see `offerEstimateFallback`).
- * Only when beec itself is unreachable does this fall back to the fixtures
- * below so the demo keeps working: the canonical geocoded query —
- * `"월드컵로 120"`, with or without the `"서울특별시 마포구"` prefix — is
- * treated as an address lookup and returns every nearby fixture
- * (`SEARCH_RESULTS`), ordered by distance, mirroring how a real address
- * search returns nearby buildings rather than only the one exact
- * street-number match. Any other query (a building name, or a more specific
- * address such as `"월드컵로 96"`) falls back to a case-insensitive substring
- * match against name/address.
+ * there is real data, not a fixture. When that comes back `found:false`,
+ * tries the separate 서울 아파트 API (`/api/apt/search`) next — `/api/match`
+ * only matches 지번 addresses, so an apartment name or 도로명 query it missed
+ * can still turn up there. Only when both come back empty does the caller
+ * get `offerEstimateFallback` (see below); only when beec itself is
+ * unreachable does this fall back to the fixtures below so the demo keeps
+ * working: the canonical geocoded query — `"월드컵로 120"`, with or without
+ * the `"서울특별시 마포구"` prefix — is treated as an address lookup and
+ * returns every nearby fixture (`SEARCH_RESULTS`), ordered by distance,
+ * mirroring how a real address search returns nearby buildings rather than
+ * only the one exact street-number match. Any other query (a building name,
+ * or a more specific address such as `"월드컵로 96"`) falls back to a
+ * case-insensitive substring match against name/address.
  */
-export async function searchBuildings(query?: string): Promise<SearchOutcome> {
+export async function searchBuildings(
+  query?: string,
+  buildingName?: string,
+  roadAddress?: string,
+): Promise<SearchOutcome> {
   if (!query || !query.trim()) {
     return { buildings: [...SEARCH_RESULTS], offerEstimateFallback: false };
   }
 
   try {
-    const match = await matchAddress(query);
+    const match = await matchAddress(query, buildingName);
     const grade = match.found ? resolveGradeCode(match) : null;
     const energy = match.found ? resolveEnergy(match) : null;
     // 매칭은 됐지만 에너지 값이 없으면 등급도 없습니다. 임의의 값을 채워 넣는 대신
-    // 용도·지역·규모 추정(`/api/report`)으로 넘깁니다 — 그쪽이 바로 이 경우를 위한 화면입니다.
-    return match.found && grade !== null && energy !== null
-      ? { buildings: [toBuildingSummary(query, match, grade, energy)], offerEstimateFallback: false }
-      : { buildings: [], offerEstimateFallback: true };
+    // 아래에서 아파트 API를, 그다음 용도·지역·규모 추정(`/api/report`)을 시도합니다.
+    if (match.found && grade !== null && energy !== null) {
+      return { buildings: [toBuildingSummary(query, match, grade, energy)], offerEstimateFallback: false };
+    }
+
+    const apartments = await searchApartmentsByQuery(query, buildingName, roadAddress);
+    if (apartments.length > 0) {
+      return { buildings: apartments, offerEstimateFallback: false };
+    }
+
+    return { buildings: [], offerEstimateFallback: true };
   } catch {
     // beec isn't reachable — fall through to the fixtures below.
   }
@@ -327,11 +521,33 @@ export async function searchBuildings(query?: string): Promise<SearchOutcome> {
 
 /**
  * Returns a single building by id: a fixture id (`"bld-001"`) looks up
- * `SEARCH_RESULTS` directly, while a beec-backed id from `searchBuildings`
+ * `SEARCH_RESULTS` directly; a beec-backed id from `searchBuildings`
  * (`"addr-…"`) re-queries `/api/match` with the address packed inside it —
- * beec has no persistent building ids of its own, only address matching.
+ * beec has no persistent id for that data, only address matching; an
+ * `"apt-…"` id re-queries `/api/apt/{aptCode}` (apartments *do* have a
+ * persistent `aptCode`, so this one's a direct lookup); an `"est-…"` id
+ * re-queries `/api/report` with the 용도·지역·규모 packed inside it.
  */
 export async function getBuildingById(id: string, buildingName?: string): Promise<BuildingSummary | undefined> {
+  if (id.startsWith(APARTMENT_ID_PREFIX)) {
+    try {
+      const detail = await getApartmentDetail(id.slice(APARTMENT_ID_PREFIX.length));
+      return toApartmentBuildingSummary(detail) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  const estimateParts = decodeEstimateId(id);
+  if (estimateParts) {
+    try {
+      const result = await estimateReport(estimateParts.purpose, estimateParts.region, estimateParts.sizeBucket as SizeBucket);
+      return result.found ? toEstimateBuildingSummary(estimateParts, result) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   const address = decodeAddressId(id);
   if (address === null) {
     return SEARCH_RESULTS.find((building) => building.id === id);
