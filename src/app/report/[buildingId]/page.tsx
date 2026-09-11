@@ -10,6 +10,7 @@ import { getEcoCheckReport } from "@/src/data/account";
 import { PRIMARY_ENERGY_UNIT } from "@/src/data/grades";
 import { formatNumber } from "@/src/lib/format";
 import { getDistrict } from "@/src/lib/audience";
+import { HEATING_TYPE_OPTIONS, readApartmentChecklistParams } from "@/src/lib/apartment-checklist";
 import type { BasisRow } from "./_components/ReportOverview";
 import { ReportBody } from "./_components/ReportBody";
 
@@ -72,6 +73,22 @@ function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
   return rows;
 }
 
+/** Rows for the "직접 입력한 집 정보" card — from the home hero's apartment checklist, via query params. */
+function buildChecklistRows(checklist: NonNullable<ReturnType<typeof readApartmentChecklistParams>>): BasisRow[] {
+  const rows: BasisRow[] = [];
+  if (checklist.completionYear !== null) {
+    rows.push({ icon: "calendar", label: "준공연도", value: `${checklist.completionYear}년` });
+  }
+  if (checklist.builder) {
+    rows.push({ icon: "building", label: "건설사", value: checklist.builder });
+  }
+  if (checklist.heatingType) {
+    const option = HEATING_TYPE_OPTIONS.find((candidate) => candidate.value === checklist.heatingType);
+    rows.push({ icon: "thermometer", label: "난방 방식", value: option?.label ?? checklist.heatingType });
+  }
+  return rows;
+}
+
 /**
  * Server shell for a building's energy report. Fixture buildings render
  * their fixture figures; live beec matches (`addr-…` ids from the home or
@@ -82,12 +99,14 @@ function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
  */
 export default async function ReportPage({ params, searchParams }: PageProps<"/report/[buildingId]">) {
   const { buildingId } = await params;
+  const resolvedSearchParams = await searchParams;
 
-  const building = await getBuildingById(buildingId, readBuildingName((await searchParams).bn));
+  const building = await getBuildingById(buildingId, readBuildingName(resolvedSearchParams.bn));
   if (!building) {
     notFound();
   }
 
+  const checklist = readApartmentChecklistParams(resolvedSearchParams);
   const report = await getEcoCheckReport();
   const hasFullReport = building.id === report.buildingId;
   const isEstimated = building.gradeSource === "estimated";
@@ -155,6 +174,24 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
           }
           fetchLiveMetrics={live !== undefined || estimate !== undefined}
         >
+          {checklist ? (
+            <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
+              <SectionHeader
+                title="직접 입력한 집 정보"
+                hint="주소 검색 때 입력해 주신 내용이에요. 아직 등급 계산에는 반영되지 않아요."
+                hintSize="sm"
+              />
+              <dl className="grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-3)] sm:grid-cols-3">
+                {buildChecklistRows(checklist).map((row) => (
+                  <div key={row.label} className="flex flex-col gap-[2px]">
+                    <dt className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">{row.label}</dt>
+                    <dd className="text-[17px] font-bold text-[var(--text-strong)]">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          ) : null}
+
           <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
             <SectionHeader
               title="등급 기준표"
