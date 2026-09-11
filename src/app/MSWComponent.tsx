@@ -11,7 +11,9 @@ const mockingEnabledPromise =
       }
       await worker.start({
         onUnhandledRequest(request, print) {
-          if (request.url.includes('_next')) {
+          // `/api/match` and `/api/report` are proxied to the real backend (next.config.ts).
+          const { pathname } = new URL(request.url)
+          if (request.url.includes('_next') || pathname === '/api/match' || pathname === '/api/report') {
             return
           }
           print.warning()

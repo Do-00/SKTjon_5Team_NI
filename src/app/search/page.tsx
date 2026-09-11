@@ -4,19 +4,14 @@ import { ButtonLink, Card, Icon } from "@/src/components/ui";
 import { EnergyGradeBadge } from "@/src/components/domain";
 import { searchBuildings } from "@/src/data/buildings";
 import { formatDistance, formatNumber } from "@/src/lib/format";
-import { SearchBar } from "./_components/SearchBar";
+import { firstParam } from "@/src/lib/search-params";
+import { AddressSearch } from "./_components/AddressSearch";
 
 export const metadata = {
   title: "건물 에너지 등급 검색",
 };
 
 const SUGGESTED_QUERIES = ["월드컵로 120", "마포구", "상암"];
-
-function normalizeQuery(raw: string | string[] | undefined): string | undefined {
-  const value = Array.isArray(raw) ? raw[0] : raw;
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
 
 function SuggestedQueries({ label }: { label?: string }) {
   return (
@@ -39,7 +34,7 @@ function SuggestedQueries({ label }: { label?: string }) {
 
 export default async function SearchPage(props: PageProps<"/search">) {
   const searchParams = await props.searchParams;
-  const query = normalizeQuery(searchParams.q);
+  const query = firstParam(searchParams.q);
   const hasQuery = query !== undefined;
   const results = await searchBuildings(query);
 
@@ -52,7 +47,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
           description="도로명 주소를 입력하면 에너지효율등급과 인근 건물 비교 결과를 확인할 수 있어요."
         />
 
-        <SearchBar defaultValue={query ?? ""} submitLabel="검색" className="max-w-2xl" />
+        <AddressSearch className="max-w-2xl" />
 
         {hasQuery ? (
           <p role="status" className="text-[length:var(--text-label-size)] font-medium text-[var(--text-muted)]">
@@ -70,12 +65,13 @@ export default async function SearchPage(props: PageProps<"/search">) {
               <Icon name="search" size={28} />
             </span>
             <div className="flex flex-col gap-[var(--space-2)]">
-              <h2 className="eco-heading">검색할 주소를 입력해 주세요</h2>
+              <h2 className="eco-heading">검색할 주소를 선택해 주세요</h2>
               <p className="mx-auto max-w-md text-[length:var(--text-body-size)] text-[var(--text-muted)]">
-                건물의 도로명 주소를 입력하면 에너지효율등급, 인근 건물 비교, 맞춤 절감 방법까지 확인할 수 있어요.
+                위 검색창을 누르면 주소 검색이 열려요. 도로명·지번 주소를 고르면 인증 이력을 조회해 에너지 등급을
+                보여 드려요.
               </p>
             </div>
-            <SuggestedQueries label="인기 검색어" />
+            <SuggestedQueries label="샘플 건물 둘러보기" />
           </Card>
         ) : results.length === 0 ? (
           <Card padding="lg" className="flex flex-col items-center gap-[var(--space-4)] py-[var(--space-16)] text-center">

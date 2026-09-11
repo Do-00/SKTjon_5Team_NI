@@ -5,6 +5,10 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Icon, Input, cn } from "@/src/components/ui";
 
+/** White raised panel shared by `SearchBar` and `AddressSearch`. */
+export const SEARCH_PANEL_CLASS =
+  "flex w-full flex-col gap-[var(--space-3)] rounded-[var(--radius-lg)] bg-[var(--surface-card)] p-[var(--space-3)] shadow-[var(--shadow-raised)] sm:flex-row";
+
 export interface SearchBarProps {
   /** Pre-fills the input, e.g. from the current `?q=` search param. */
   defaultValue?: string;
@@ -37,10 +41,7 @@ export function SearchBar({ defaultValue = "", submitLabel = "등급 확인하�
       method="get"
       onSubmit={handleSubmit}
       aria-label="건물 주소 검색"
-      className={cn(
-        "flex w-full flex-col gap-[var(--space-3)] rounded-[var(--radius-lg)] bg-[var(--surface-card)] p-[var(--space-3)] shadow-[var(--shadow-raised)] sm:flex-row",
-        className
-      )}
+      className={cn(SEARCH_PANEL_CLASS, className)}
     >
       <label htmlFor={inputId} className="sr-only">
         건물 도로명 주소

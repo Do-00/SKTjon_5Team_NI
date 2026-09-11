@@ -48,11 +48,11 @@ export const handlers = [
 ];
 ```
 
-### Fetch wrapper
+### Energy-grade backend
 
-`src/mocks/http.ts` exports `api.get<T>`, `api.post<T>`, etc.
-- Dev: relative paths (MSW intercepts them)
-- Prod: prepends `NEXT_PUBLIC_API_BASE_URL` env var
+- The browser calls same-origin `/api/match` and `/api/report` (`src/lib/energy-api.ts`); `next.config.ts` rewrites them to the backend at `API_ORIGIN` (default `http://localhost:8080`, override in `.env.local`). No CORS setup needed.
+- These paths have no MSW handler on purpose, so MSW passes them through to the backend.
+- Flow: the home page's `AddressSearch` opens the Kakao postcode popup (`src/lib/kakao-postcode.ts`) → `/report?jibunAddress=…` → `ReportLookup` calls `/api/match`; if not found it asks for region/purpose/size and calls `/api/report` for an estimated grade.
 
 ### TypeScript paths
 

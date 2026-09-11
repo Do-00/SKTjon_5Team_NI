@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
+import { PageSection, SiteShell } from "@/src/components/layout";
 import { Badge, ButtonLink, Card, Icon, Notice } from "@/src/components/ui";
-import { GradeScale } from "@/src/components/domain";
 import { getBuildingById, type BuildingSummary } from "@/src/data/buildings";
 import { getEcoCheckReport } from "@/src/data/account";
 import { formatManwon, formatNumber } from "@/src/lib/format";
-import { ReportOverview, type BasisRow } from "./_components/ReportOverview";
+import { GradeScaleCard } from "../_components/GradeScaleCard";
+import { ReportOverview, type BasisRow } from "../_components/ReportOverview";
 
 export async function generateMetadata({
   params,
@@ -62,7 +62,8 @@ export default async function ReportPage({ params }: PageProps<"/report/[buildin
         ) : null}
 
         <ReportOverview
-          buildingId={building.id}
+          savePath={`/report/${building.id}`}
+          guideHref={`/guide/${building.id}`}
           buildingName={building.name}
           metaLine={`${building.completionYear}년 준공 · ${building.useType} · ${formatNumber(building.areaSqm)}㎡`}
           address={building.address}
@@ -81,14 +82,7 @@ export default async function ReportPage({ params }: PageProps<"/report/[buildin
           }
         />
 
-        <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
-          <SectionHeader
-            title="등급 기준표"
-            hint="다른 등급을 누르면 연간 단위면적당 1차에너지소요량을 볼 수 있습니다."
-            hintSize="sm"
-          />
-          <GradeScale value={building.grade} selectable />
-        </Card>
+        <GradeScaleCard grade={building.grade} />
 
         {hasFullReport ? (
           <Card

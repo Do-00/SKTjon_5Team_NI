@@ -24,7 +24,16 @@ export interface ReportMetrics {
 }
 
 interface ReportOverviewProps {
-  buildingId: string;
+  /** Path to return to after logging in to save this report. */
+  savePath: string;
+  /** Target of the 개선 후 tab's guide link; the link is hidden when omitted. */
+  guideHref?: string;
+  /** Overrides the badge caption (default 추정 등급 / 인증 등급), e.g. `"예비인증"`. */
+  caption?: string;
+  /** Overrides the basis card title. */
+  basisTitle?: string;
+  /** Heading level of the building name; `h2` when the page already has an `h1`. */
+  titleAs?: "h1" | "h2";
   buildingName: string;
   /** e.g. `"1998년 준공 · 공동주택 · 84㎡"`. */
   metaLine: string;
@@ -47,7 +56,11 @@ const TAB_CLASS =
  * left card drives the panels on the right.
  */
 export function ReportOverview({
-  buildingId,
+  savePath,
+  guideHref,
+  caption,
+  basisTitle,
+  titleAs: Title = "h1",
   buildingName,
   metaLine,
   address,
@@ -76,12 +89,12 @@ export function ReportOverview({
     >
       <Card padding="lg" className="flex flex-col items-center gap-[var(--space-6)]" style={accentStyle}>
         <div className="text-center">
-          <h1 className="font-brand text-[24px] font-black leading-[1.3] text-[var(--text-strong)]">{buildingName}</h1>
+          <Title className="font-brand text-[24px] font-black leading-[1.3] text-[var(--text-strong)]">{buildingName}</Title>
           <p className="mt-[var(--space-1)] text-[16px] text-[var(--text-muted)]">{metaLine}</p>
           <p className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">{address}</p>
         </div>
 
-        <EnergyGradeBadge grade={grade} size="lg" caption={isEstimated ? "추정 등급" : "인증 등급"} />
+        <EnergyGradeBadge grade={grade} size="lg" caption={caption ?? (isEstimated ? "추정 등급" : "인증 등급")} />
 
         {metrics ? (
           <TabList aria-label="성적표 시점 선택" className="w-full">
@@ -95,7 +108,7 @@ export function ReportOverview({
         ) : null}
 
         <div className="flex w-full flex-col gap-[var(--space-2)]">
-          <ReportActions buildingId={buildingId} buildingName={buildingName} />
+          <ReportActions savePath={savePath} buildingName={buildingName} />
           <p className="text-center text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
             저장하려면 로그인이 필요해요
           </p>
@@ -131,21 +144,23 @@ export function ReportOverview({
                   </strong>
                   을 줄일 수 있어요.
                 </p>
-                <ButtonLink
-                  href={`/guide/${buildingId}`}
-                  variant="primary"
-                  className="self-start"
-                  trailingIcon={<Icon name="arrow-right" size={20} />}
-                >
-                  절감 하기에서 실천 항목 고르기
-                </ButtonLink>
+                {guideHref ? (
+                  <ButtonLink
+                    href={guideHref}
+                    variant="primary"
+                    className="self-start"
+                    trailingIcon={<Icon name="arrow-right" size={20} />}
+                  >
+                    절감 하기에서 실천 항목 고르기
+                  </ButtonLink>
+                ) : null}
               </Card>
             </TabPanel>
           </>
         ) : null}
 
         <Card padding="lg">
-          <SectionHeader as="h2" title={metrics ? "추정 근거" : "건물 정보"} hint="공공 데이터 기반" />
+          <SectionHeader as="h2" title={basisTitle ?? (metrics ? "추정 근거" : "건물 정보")} hint="공공 데이터 기반" />
           <dl className="mt-[var(--space-5)] grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-4)] md:grid-cols-2">
             {basisRows.map((row) => (
               <div

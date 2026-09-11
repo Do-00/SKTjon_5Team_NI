@@ -121,6 +121,12 @@ export async function getGradeByCode(code: GradeCode): Promise<GradeDefinition |
   return GRADES[code];
 }
 
+/** Parses an API grade label such as `"1+등급"` (or a bare `"1+"`) into a `GradeCode`. */
+export function parseGradeLabel(label: string): GradeCode | null {
+  const code = label.trim().replace(/등급$/, "");
+  return (GRADE_ORDER as readonly string[]).includes(code) ? (code as GradeCode) : null;
+}
+
 /**
  * Returns the grade whose primary-energy range (see `PRIMARY_ENERGY_UNIT`)
  * contains the given annual consumption value.

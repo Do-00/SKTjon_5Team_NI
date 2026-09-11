@@ -13,7 +13,7 @@ export async function SiteFooter() {
     {
       title: "서비스",
       links: [
-        { label: "에너지 성적표", href: `/report/${primaryBuildingId}` },
+        { label: "에너지 성적표", href: "/search" },
         { label: "절감 하기", href: `/guide/${primaryBuildingId}` },
         { label: "지원사업 매칭", href: "/programs" },
       ],

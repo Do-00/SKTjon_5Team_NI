@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { GradeDistributionEntry } from "@/src/data/grades";
 import { getGradeColorVars } from "@/src/components/domain/grade-tokens";
+import { cn } from "@/src/components/ui";
 import { formatNumber } from "@/src/lib/format";
 import styles from "./grade-distribution-chart.module.css";
 
@@ -13,23 +14,34 @@ type FigureStyle = CSSProperties & {
 };
 
 interface GradeDistributionChartProps {
+  /**
+   * One entry per grade. The current building's entry may carry a `count`
+   * (drawn as a highlighted bar) or `null` (drawn as a marker only).
+   */
   entries: GradeDistributionEntry[];
   idPrefix: string;
   areaLabel?: string;
+  eyebrow?: string;
+  title?: string;
+  /** Noun for the compared buildings, e.g. `"인근 건물"`, `"같은 조건 건물"`. */
+  peerNoun?: string;
 }
 
 export function GradeDistributionChart({
   entries,
   idPrefix,
   areaLabel = "월드컵로 반경 500m",
+  eyebrow = "주변 비교",
+  title = "근처 에너지 등급 분포",
+  peerNoun = "인근 건물",
 }: GradeDistributionChartProps) {
-  const peerEntries = entries.filter(
+  const countedEntries = entries.filter(
     (entry): entry is GradeDistributionEntry & { count: number } =>
       entry.count !== null,
   );
-  const maxCount = Math.max(1, ...peerEntries.map((entry) => entry.count));
-  const totalCount = peerEntries.reduce((sum, entry) => sum + entry.count, 0);
-  const mostCommon = peerEntries.reduce<
+  const maxCount = Math.max(1, ...countedEntries.map((entry) => entry.count));
+  const totalCount = countedEntries.reduce((sum, entry) => sum + entry.count, 0);
+  const mostCommon = countedEntries.reduce<
     (GradeDistributionEntry & { count: number }) | undefined
   >(
     (highest, entry) =>
@@ -37,18 +49,21 @@ export function GradeDistributionChart({
     undefined,
   );
   const currentGrade = entries.find((entry) => entry.isCurrentBuildingGrade);
+  const currentLabel = currentGrade?.label ?? "확인되지 않음";
   const summary = mostCommon
-    ? `${areaLabel}의 인근 건물 ${formatNumber(totalCount)}건을 등급별로 비교한 막대그래프입니다. 가장 많은 등급은 ${mostCommon.label} ${formatNumber(mostCommon.count)}건이며, 현재 건물의 추정 등급은 ${currentGrade?.label ?? "확인되지 않음"}입니다.`
-    : `${areaLabel}의 등급별 인근 건물 집계가 아직 없습니다. 현재 건물의 추정 등급은 ${currentGrade?.label ?? "확인되지 않음"}입니다.`;
-  const titleId = `${idPrefix}-nearby-grade-title`;
-  const descriptionId = `${idPrefix}-nearby-grade-description`;
-  const summaryId = `${idPrefix}-nearby-grade-summary`;
+    ? `${areaLabel}의 ${peerNoun} ${formatNumber(totalCount)}건을 등급별로 비교한 막대그래프입니다. 가장 많은 등급은 ${mostCommon.label} ${formatNumber(mostCommon.count)}건이며, 이 건물의 등급은 ${currentLabel}입니다.`
+    : `${areaLabel}의 등급별 ${peerNoun} 집계가 아직 없습니다. 이 건물의 등급은 ${currentLabel}입니다.`;
+  const titleId = `${idPrefix}-grade-distribution-title`;
+  const descriptionId = `${idPrefix}-grade-distribution-description`;
+  const summaryId = `${idPrefix}-grade-distribution-summary`;
   const currentGradeColor = currentGrade
     ? getGradeColorVars(currentGrade.grade).color
     : "--teal-600";
   const figureStyle: FigureStyle = {
     "--current-grade-color": `var(${currentGradeColor})`,
   };
+  const describeCount = (entry: GradeDistributionEntry) =>
+    entry.count === null ? "집계값 없음" : `${peerNoun} ${formatNumber(entry.count)}건`;
 
   return (
     <figure
@@ -59,9 +74,9 @@ export function GradeDistributionChart({
     >
       <div className={styles.headingRow}>
         <div>
-          <p className={styles.eyebrow}>주변 비교</p>
+          <p className={styles.eyebrow}>{eyebrow}</p>
           <h2 id={titleId} className="eco-heading">
-            근처 에너지 등급 분포
+            {title}
           </h2>
         </div>
         <p className={styles.scope}>
@@ -70,8 +85,8 @@ export function GradeDistributionChart({
       </div>
 
       <p id={descriptionId} className={styles.description}>
-        막대 높이는 등급별 인근 건물 수를 하나의 축으로 비교합니다. 강조된
-        표식은 이 건물의 추정 등급이며 인근 건물 수 집계에는 포함되지 않습니다.
+        막대 높이는 등급별 {peerNoun} 수를 하나의 축으로 비교합니다. 이 건물의
+        등급은 등급 색으로 강조했습니다.
       </p>
       <p id={summaryId} className="sr-only">
         {summary}
@@ -107,15 +122,13 @@ export function GradeDistributionChart({
                     style={style}
                   >
                     <span className={styles.valueLabel}>
-                      {entry.isCurrentBuildingGrade
-                        ? "우리 집"
-                        : formatNumber(entry.count ?? 0)}
+                      {entry.count === null ? "우리 집" : formatNumber(entry.count)}
                     </span>
                     <span
                       className={
-                        entry.isCurrentBuildingGrade
+                        entry.count === null
                           ? styles.currentMarker
-                          : styles.bar
+                          : cn(styles.bar, entry.isCurrentBuildingGrade && styles.currentBar)
                       }
                     />
                     <span className={styles.gradeLabel}>{entry.grade}</span>
@@ -130,18 +143,13 @@ export function GradeDistributionChart({
                   <button
                     type="button"
                     className={styles.hitTarget}
-                    aria-label={
-                      entry.isCurrentBuildingGrade
-                        ? `${entry.label}, 현재 건물의 추정 등급, 인근 건물 수 집계값 없음`
-                        : `${entry.label}, 인근 건물 ${formatNumber(entry.count ?? 0)}건`
-                    }
+                    aria-label={`${entry.label}${entry.isCurrentBuildingGrade ? ", 이 건물의 등급" : ""}, ${describeCount(entry)}`}
                   >
                     <span className={styles.tooltip} role="tooltip">
                       <strong>{entry.label}</strong>
                       <span>
-                        {entry.isCurrentBuildingGrade
-                          ? "현재 건물 · 별도 표식"
-                          : `인근 건물 ${formatNumber(entry.count ?? 0)}건`}
+                        {entry.isCurrentBuildingGrade ? "이 건물 등급 · " : ""}
+                        {describeCount(entry)}
                       </span>
                     </span>
                   </button>
@@ -154,10 +162,10 @@ export function GradeDistributionChart({
 
       <div className={styles.legend} aria-label="범례">
         <span>
-          <i className={styles.peerKey} aria-hidden="true" /> 인근 건물 수
+          <i className={styles.peerKey} aria-hidden="true" /> {peerNoun} 수
         </span>
         <span>
-          <i className={styles.currentKey} aria-hidden="true" /> 현재 건물 추정 등급
+          <i className={styles.currentKey} aria-hidden="true" /> 이 건물 등급
         </span>
       </div>
 
@@ -166,13 +174,13 @@ export function GradeDistributionChart({
         <div className={styles.tableScroller}>
           <table>
             <caption className="sr-only">
-              {areaLabel} 인근 건물의 에너지 등급별 분포
+              {areaLabel} {peerNoun}의 에너지 등급별 분포
             </caption>
             <thead>
               <tr>
                 <th scope="col">에너지 등급</th>
-                <th scope="col">인근 건물 수</th>
-                <th scope="col">현재 건물</th>
+                <th scope="col">{peerNoun} 수</th>
+                <th scope="col">이 건물</th>
               </tr>
             </thead>
             <tbody>
@@ -182,7 +190,7 @@ export function GradeDistributionChart({
                   <td>
                     {entry.count === null ? "집계값 없음" : `${formatNumber(entry.count)}건`}
                   </td>
-                  <td>{entry.isCurrentBuildingGrade ? "현재 추정 등급" : "—"}</td>
+                  <td>{entry.isCurrentBuildingGrade ? "이 건물 등급" : "—"}</td>
                 </tr>
               ))}
             </tbody>

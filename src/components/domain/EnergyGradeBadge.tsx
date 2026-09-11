@@ -5,7 +5,8 @@ import { getGradeColorVars } from "./grade-tokens";
 export type EnergyGradeBadgeSize = "sm" | "md" | "lg";
 
 export interface EnergyGradeBadgeProps {
-  grade: GradeCode;
+  /** `null` renders a neutral "?" tile for a building whose grade isn't known yet. */
+  grade: GradeCode | null;
   size?: EnergyGradeBadgeSize;
   /** Small muted line under the tile, e.g. `"개선 후 예상"`. */
   caption?: string;
@@ -35,10 +36,11 @@ export function EnergyGradeBadge({
   showLabel = false,
   className,
 }: EnergyGradeBadgeProps) {
-  const { color, soft } = getGradeColorVars(grade);
   const px = SIZE_PX[size];
-  const definition = GRADES[grade];
-  const captionText = caption ?? (estimated ? "추정 등급" : showLabel ? definition.label : undefined);
+  const code = grade ?? "?";
+  const label = grade ? GRADES[grade].label : "등급 미확인";
+  const colors = grade ? getGradeColorVars(grade) : null;
+  const captionText = caption ?? (estimated ? "추정 등급" : showLabel ? label : undefined);
 
   return (
     <span className={cn("inline-flex shrink-0 flex-col items-center gap-[var(--space-2)]", className)}>
@@ -47,14 +49,14 @@ export function EnergyGradeBadge({
         style={{
           width: px,
           height: px,
-          fontSize: Math.round(px * fontRatio(grade)),
-          backgroundColor: `var(${soft})`,
-          color: `var(${color})`,
-          border: `3px solid var(${color})`,
+          fontSize: Math.round(px * fontRatio(code)),
+          backgroundColor: colors ? `var(${colors.soft})` : "var(--surface-card)",
+          color: colors ? `var(${colors.color})` : "var(--text-muted)",
+          border: colors ? `3px solid var(${colors.color})` : "3px dashed var(--border-strong)",
         }}
       >
-        <span aria-hidden="true">{grade}</span>
-        <span className="sr-only">{definition.label}</span>
+        <span aria-hidden="true">{code}</span>
+        <span className="sr-only">{label}</span>
       </span>
       {captionText ? (
         <span className="whitespace-nowrap text-[length:var(--text-caption-size)] font-medium text-[var(--text-muted)]">

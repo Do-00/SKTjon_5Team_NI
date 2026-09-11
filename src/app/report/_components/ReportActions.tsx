@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { Button, Icon, ToastProvider, useToast } from "@/src/components/ui";
 
 interface ReportActionsProps {
-  buildingId: string;
+  /** Path to return to after logging in to save, e.g. `/report/bld-001`. */
+  savePath: string;
   buildingName: string;
 }
 
-function ReportActionButtons({ buildingId, buildingName }: ReportActionsProps) {
+function ReportActionButtons({ savePath, buildingName }: ReportActionsProps) {
   const router = useRouter();
   const { show } = useToast();
 
@@ -46,8 +47,7 @@ function ReportActionButtons({ buildingId, buildingName }: ReportActionsProps) {
   }
 
   function handleSave() {
-    const nextPath = `/report/${buildingId}`;
-    router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+    router.push(`/login?next=${encodeURIComponent(savePath)}`);
   }
 
   return (

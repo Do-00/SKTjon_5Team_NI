@@ -7,7 +7,7 @@ import { Icon } from "../ui/icons";
 import { buildSiteNav } from "./site-nav";
 
 export interface MobileNavProps {
-  /** Building the building-scoped links point at when the URL doesn't name one. */
+  /** Building the "절감 하기" link points at when the URL doesn't name one. */
   defaultBuildingId: string;
 }
 
