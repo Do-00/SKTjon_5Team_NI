@@ -4,6 +4,7 @@ import { ButtonLink, Card, Icon } from "@/src/components/ui";
 import { EnergyGradeBadge } from "@/src/components/domain";
 import { searchBuildings } from "@/src/data/buildings";
 import { formatDistance, formatNumber } from "@/src/lib/format";
+import { EstimateFallbackForm } from "./_components/EstimateFallbackForm";
 import { SearchBar } from "./_components/SearchBar";
 
 export const metadata = {
@@ -41,7 +42,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
   const searchParams = await props.searchParams;
   const query = normalizeQuery(searchParams.q);
   const hasQuery = query !== undefined;
-  const results = await searchBuildings(query);
+  const { buildings: results, offerEstimateFallback } = await searchBuildings(query);
 
   return (
     <SiteShell>
@@ -77,6 +78,8 @@ export default async function SearchPage(props: PageProps<"/search">) {
             </div>
             <SuggestedQueries label="인기 검색어" />
           </Card>
+        ) : results.length === 0 && offerEstimateFallback ? (
+          <EstimateFallbackForm query={query ?? ""} />
         ) : results.length === 0 ? (
           <Card padding="lg" className="flex flex-col items-center gap-[var(--space-4)] py-[var(--space-16)] text-center">
             <span
