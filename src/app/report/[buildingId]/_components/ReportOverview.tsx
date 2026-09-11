@@ -68,7 +68,7 @@ export function ReportOverview({
   metrics,
 }: ReportOverviewProps) {
   const [view, setView] = useState<"now" | "after">("now");
-  const { selectedCount, result: projection } = useWhatIfProjection(buildingId, primaryEnergyKwh, useType);
+  const { selectedCount, result: projection } = useWhatIfProjection(buildingId, primaryEnergyKwh, useType, grade);
   const showingProjection = view === "after" && projection !== null;
   const displayGrade = showingProjection ? projection.projectedGrade : grade;
 
@@ -170,16 +170,21 @@ export function ReportOverview({
                     <Badge tone="good">실시간 계산</Badge>
                   </div>
                   <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
-                    {grade}등급 → <strong className="text-[var(--teal-700)]">{projection.projectedGrade}등급</strong>
-                    , 1차에너지소요량 {formatNumber(projection.currentPrimaryEnergyKwh)} →{" "}
+                    1차에너지소요량 {formatNumber(projection.currentPrimaryEnergyKwh)} →{" "}
                     {formatNumber(projection.projectedPrimaryEnergyKwh)} {PRIMARY_ENERGY_UNIT} (▼
                     {projection.reductionPercent}%)
                   </p>
                   <p className="text-[length:var(--text-body-size)] text-[var(--text-body)]">
+                    적용 후 예상 등급{" "}
+                    <strong className="text-[var(--teal-700)]">{projection.projectedGrade}등급</strong>
+                    {" · "}
                     예상 절감액 월{" "}
                     <strong className="text-[var(--teal-700)]">
                       {formatManwon(projection.totalMonthlySavingsManwon)}
                     </strong>
+                  </p>
+                  <p className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
+                    실제 등급({grade}등급)을 기준으로, 선택한 조치의 예상 절감 효과만큼 등급을 추정한 값이에요.
                   </p>
                   <ButtonLink
                     href={`/guide/${buildingId}`}

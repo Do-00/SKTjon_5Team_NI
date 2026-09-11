@@ -5,6 +5,7 @@ import { getEcoActions, type EcoAction } from "@/src/data/actions";
 import type { SimulateResult } from "@/src/lib/beec-client";
 import { useChecklistStorage } from "@/src/lib/checklist-storage";
 import { mapSimulateResponse, type WhatIfResult } from "@/src/lib/what-if";
+import type { GradeCode } from "@/src/data/grades";
 
 /**
  * `/api/simulate`'s `purpose` only distinguishes "주거용" from anything else
@@ -27,6 +28,7 @@ export function useWhatIfProjection(
   buildingId: string,
   primaryEnergyKwh: number,
   useType: string,
+  realGrade: GradeCode,
 ) {
   const { completed } = useChecklistStorage(buildingId);
   const [actions, setActions] = useState<EcoAction[]>([]);
@@ -71,7 +73,7 @@ export function useWhatIfProjection(
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`status ${res.status}`))))
       .then((data: SimulateResult) => {
         if (cancelled) return;
-        const mapped = mapSimulateResponse(data, totalMonthlySavingsManwon);
+        const mapped = mapSimulateResponse(data, totalMonthlySavingsManwon, realGrade);
         if (mapped) setRemote({ key: requestKey, result: mapped });
       })
       .catch(() => {

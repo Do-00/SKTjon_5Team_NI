@@ -83,7 +83,7 @@ export function GuideChecklist({
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`status ${res.status}`))))
       .then((data: SimulateResult) => {
         if (cancelled) return;
-        const mapped = mapSimulateResponse(data, totalMonthlySavingsManwon);
+        const mapped = mapSimulateResponse(data, totalMonthlySavingsManwon, currentGrade);
         if (mapped) setRemote({ key: requestKey, result: mapped });
       })
       .catch(() => {

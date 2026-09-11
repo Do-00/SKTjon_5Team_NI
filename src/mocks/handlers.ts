@@ -5,7 +5,8 @@ import { getExampleEnergyCost } from '@/src/data/energy-cost';
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? '';
 
 // 등급별 예시 성적표 수치는 src/data/energy-cost.ts 에 있습니다 — 값을 바꿔 가며 실험하세요.
-// MSW가 안 떠 있을 때도 성적표가 같은 표를 쓰도록 한 곳에 모아 두었습니다.
+// 성적표는 이제 우리 앱의 같은 오리진 라우트(src/app/api/energy-cost)를 직접 부르므로 이 핸들러는
+// 안 타지만, beec 주소로 직접 요청하는 다른 코드가 생기면 여전히 안전망 역할을 합니다.
 
 // 가짜 유저 데이터
 const Users: Record<number, { id: number; email: string; nickname: string }> = {
