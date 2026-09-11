@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { MSWProvider as MSWComponent } from "./MSWComponent";
+import { SkunivAdPopup } from "@/src/components/layout/SkunivAdPopup";
 
 // NOTE: 디자인 시스템의 A2Z 디스플레이 서체(700/900)는 추출된 TTF 바이너리가
 // 잘려 있어(196,608바이트 절단) next/font/local 로딩이 불가능하다. 완전한
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <MSWComponent>{children}</MSWComponent>
+        <SkunivAdPopup />
       </body>
     </html>
   );
