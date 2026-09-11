@@ -52,16 +52,22 @@ export function matchPostcodeAddress(data: KakaoPostcodeData): Promise<MatchResu
 }
 
 /**
- * Example report figures for a grade. beec has no such endpoint yet, so this
+ * Report figures for a building. beec has no such endpoint yet, so this
  * calls our own same-origin `/api/energy-cost` route handler (a relative
- * URL, resolved against the page's own origin — not beec's `API_BASE_URL`).
- * It used to go through MSW mocking a request to beec's origin instead, but
- * that only worked when the browser's mock Service Worker registered
- * successfully, which isn't reliable everywhere — so the "개선 후" tab and
- * savings card would silently disappear whenever registration failed.
+ * URL, resolved against the page's own origin — not beec's `API_BASE_URL`),
+ * which computes them from `primaryEnergyKwh × areaSqm` rather than a flat
+ * per-grade table. It used to go through MSW mocking a request to beec's
+ * origin instead, but that only worked when the browser's mock Service
+ * Worker registered successfully, which isn't reliable everywhere — so the
+ * "개선 후" tab and savings card would silently disappear whenever
+ * registration failed.
  */
-export async function fetchEnergyCost(gradeCode: string, primaryEnergyKwh: number): Promise<EnergyMetrics> {
-  const params = new URLSearchParams({ gradeCode, primaryEnergyKwh: String(primaryEnergyKwh) });
+export async function fetchEnergyCost(gradeCode: string, primaryEnergyKwh: number, areaSqm: number): Promise<EnergyMetrics> {
+  const params = new URLSearchParams({
+    gradeCode,
+    primaryEnergyKwh: String(primaryEnergyKwh),
+    areaSqm: String(areaSqm),
+  });
   const res = await fetch(`/api/energy-cost?${params.toString()}`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`/api/energy-cost error: ${res.status}`);

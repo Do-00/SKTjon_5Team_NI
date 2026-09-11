@@ -34,11 +34,12 @@ export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics
   const [metrics, setMetrics] = useState<ReportMetrics | null>(initialMetrics);
   const [ready, setReady] = useState(!fetchLiveMetrics);
   const { grade, primaryEnergyKwh, buildingId } = overview;
+  const { areaSqm } = comment;
 
   useEffect(() => {
     if (!fetchLiveMetrics) return;
     let cancelled = false;
-    fetchEnergyCost(grade, primaryEnergyKwh)
+    fetchEnergyCost(grade, primaryEnergyKwh, areaSqm)
       .then((data) => {
         if (!cancelled) setMetrics(data);
       })
@@ -52,7 +53,7 @@ export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics
     return () => {
       cancelled = true;
     };
-  }, [fetchLiveMetrics, grade, primaryEnergyKwh]);
+  }, [fetchLiveMetrics, grade, primaryEnergyKwh, areaSqm]);
 
   return (
     <>
