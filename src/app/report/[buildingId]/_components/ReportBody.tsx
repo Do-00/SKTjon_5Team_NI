@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { AiEnergyComment, type AiEnergyCommentProps } from "@/src/components/domain/AiEnergyComment";
+import { AiRemodelReport, type AiRemodelReportProps } from "@/src/components/domain/AiRemodelReport";
 import { Badge, ButtonLink, Card, Icon } from "@/src/components/ui";
 import { getExampleEnergyCost } from "@/src/data/energy-cost";
 import { fetchEnergyCost } from "@/src/lib/eco-api";
@@ -11,7 +11,8 @@ import { ReportOverview, type ReportMetrics, type ReportOverviewProps } from "./
 
 export interface ReportBodyProps {
   overview: Omit<ReportOverviewProps, "metrics">;
-  comment: Omit<AiEnergyCommentProps, "metrics">;
+  /** Gemini 리모델링 리포트 입력 — `metrics`는 이 컴포넌트가 채운다. */
+  remodel: Omit<AiRemodelReportProps, "metrics">;
   /** Fixture figures, for the one building that has a full report fixture. */
   initialMetrics: ReportMetrics | null;
   /**
@@ -20,17 +21,17 @@ export interface ReportBodyProps {
    * — or fall back to the same example table when MSW isn't running.
    */
   fetchLiveMetrics: boolean;
-  /** Rendered between the AI comment and the savings card (the grade scale). */
+  /** Rendered between the AI remodel report and the savings card (the grade scale). */
   children?: ReactNode;
 }
 
 /**
  * Client part of the report page that owns the figures: fixture metrics are
- * passed straight through, live matches fetch theirs first. The AI comment
- * and the savings card wait for that fetch so they're generated from the
- * real figures rather than flashing the "준비 중" state.
+ * passed straight through, live matches fetch theirs first. The AI remodel
+ * report and the savings card wait for that fetch so they're generated from
+ * the real figures rather than flashing the "준비 중" state.
  */
-export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics, children }: ReportBodyProps) {
+export function ReportBody({ overview, remodel, initialMetrics, fetchLiveMetrics, children }: ReportBodyProps) {
   const [metrics, setMetrics] = useState<ReportMetrics | null>(initialMetrics);
   const [ready, setReady] = useState(!fetchLiveMetrics);
   const { grade, primaryEnergyKwh, buildingId } = overview;
@@ -58,7 +59,7 @@ export function ReportBody({ overview, comment, initialMetrics, fetchLiveMetrics
     <>
       <ReportOverview {...overview} metrics={metrics} />
 
-      {ready ? <AiEnergyComment {...comment} metrics={metrics} /> : null}
+      {ready ? <AiRemodelReport {...remodel} metrics={metrics} /> : null}
 
       {children}
 

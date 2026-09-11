@@ -4,7 +4,7 @@ import { GRADES, type GradeCode } from "../data/grades";
  * Gemini Flash 연동: 등급 정보를 "소유주가 임차인에게 할 말" 또는 "임차인이
  * 취할 대처방안"으로 풀어써주는 프롬프트/폴백 로직.
  *
- * `src/lib/energy-comment.ts`와 같은 원칙 — 등급 숫자는 이미 계산된 값을
+ * `src/lib/remodel-report.ts`와 같은 원칙 — 등급 숫자는 이미 계산된 값을
  * 그대로 넘기고, AI는 그 값을 역할(소유주/임차인)에 맞는 문장으로 설명하는
  * 역할만 맡는다.
  */

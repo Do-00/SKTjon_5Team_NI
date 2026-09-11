@@ -64,7 +64,19 @@ export interface BuildingSummary {
   estimate?: BuildingEstimateInfo;
   /** Set for an `/api/apt/{aptCode}` match (`apt-…` ids) — richer facts/measured/estimate than `/api/match` gives. */
   apartment?: ApartmentReportInfo;
+  /**
+   * beec's response exactly as it came back, for every beec-backed building
+   * (absent on fixtures). The report's "추정 근거" card shows it unprocessed,
+   * and the Gemini 리모델링 리포트 sends it as the building data.
+   */
+  rawSource?: BuildingRawSource;
 }
+
+/** Which beec endpoint a building came from, with that endpoint's untouched response. */
+export type BuildingRawSource =
+  | { kind: "apt"; data: ApartmentDetail }
+  | { kind: "match"; data: MatchResult }
+  | { kind: "report"; data: ReportEstimate };
 
 /** Raw `/api/match` fields, so the report shows beec's values instead of the fixture-shaped placeholders. */
 export interface LiveMatchInfo {
@@ -304,6 +316,7 @@ function toBuildingSummary(
       district: match.district ?? "",
       certKind: match.certKind ?? "",
     },
+    rawSource: { kind: "match", data: match },
   };
 }
 
@@ -324,7 +337,8 @@ function toEstimateBuildingSummary(parts: EstimateIdParts, result: ReportEstimat
     grade,
     distanceMeters: 0,
     gradeSource: "estimated",
-    primaryEnergyKwh: 0,
+    // 그룹 인증값의 중앙값 — beec 가 시뮬레이터 baseEnergy 로 쓰라고 내주는 값. 없으면 0(모름).
+    primaryEnergyKwh: result.primaryEnergyKwh ?? 0,
     useType: parts.purpose,
     ...PLACEHOLDER_BUILDING_DETAILS,
     certificationHistory: [],
@@ -335,6 +349,7 @@ function toEstimateBuildingSummary(parts: EstimateIdParts, result: ReportEstimat
       sampleCount: result.sampleCount ?? 0,
       lowSample: result.lowSample ?? false,
     },
+    rawSource: { kind: "report", data: result },
   };
 }
 
@@ -417,6 +432,7 @@ function toApartmentBuildingSummary(detail: ApartmentDetail): BuildingSummary | 
       disclaimer,
       marginOfError,
     },
+    rawSource: { kind: "apt", data: detail },
   };
 }
 

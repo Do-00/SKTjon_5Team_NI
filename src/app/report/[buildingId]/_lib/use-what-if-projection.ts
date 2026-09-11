@@ -4,19 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { getEcoActions, type EcoAction } from "@/src/data/actions";
 import type { SimulateResult } from "@/src/lib/beec-client";
 import { useChecklistStorage } from "@/src/lib/checklist-storage";
-import { mapSimulateResponse, type WhatIfResult } from "@/src/lib/what-if";
+import { mapSimulateResponse, toSimulatePurpose, type WhatIfResult } from "@/src/lib/what-if";
 import type { GradeCode } from "@/src/data/grades";
-
-/**
- * `/api/simulate`'s `purpose` only distinguishes "주거용" from anything else
- * (see `GradeTable.tableOf` — exact match on "주거용", else non-residential).
- * beec's live matches already send `useType` as exactly "주거용"/"주거용 이외",
- * but fixture buildings use descriptive labels like "공동주택" — normalize
- * those to "주거용" so they hit the right grade table.
- */
-function toSimulatePurpose(useType: string): string {
-  return useType === "주거용" || useType.includes("주택") ? "주거용" : useType;
-}
 
 /**
  * Reads the same 절감 하기 checklist (`useChecklistStorage`, shared

@@ -31,7 +31,18 @@ export interface WhatIfResult {
   source: "beec" | "local";
 }
 
-function gradeFromPrimaryEnergy(kwh: number): GradeCode {
+/**
+ * `/api/simulate`'s `purpose` only distinguishes "주거용" from anything else
+ * (see `GradeTable.tableOf` — exact match on "주거용", else non-residential).
+ * beec's live matches already send `useType` as exactly "주거용"/"주거용 이외",
+ * but fixture buildings use descriptive labels like "공동주택" — normalize
+ * those to "주거용" so they hit the right grade table.
+ */
+export function toSimulatePurpose(useType: string): string {
+  return useType === "주거용" || useType.includes("주택") ? "주거용" : useType;
+}
+
+export function gradeFromPrimaryEnergy(kwh: number): GradeCode {
   return (
     GRADE_ORDER.find((code) => {
       const { minPrimaryEnergyKwh, maxPrimaryEnergyKwh } = GRADES[code];
@@ -53,7 +64,7 @@ function gradeFromPrimaryEnergy(kwh: number): GradeCode {
  * grade-steps the reduction is worth, on its own internally-consistent
  * scale — and apply that same step count to the building's real grade.
  */
-function shiftGrade(realGrade: GradeCode, simBefore: GradeCode, simAfter: GradeCode): GradeCode {
+export function shiftGrade(realGrade: GradeCode, simBefore: GradeCode, simAfter: GradeCode): GradeCode {
   const rankShift = GRADES[simAfter].rank - GRADES[simBefore].rank;
   const shiftedRank = Math.min(GRADE_ORDER.length, Math.max(1, GRADES[realGrade].rank + rankShift));
   return GRADE_ORDER[shiftedRank - 1];
