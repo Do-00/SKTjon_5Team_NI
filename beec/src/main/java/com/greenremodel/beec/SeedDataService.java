@@ -120,7 +120,12 @@ public class SeedDataService {
             if (buildingName != null && !buildingName.isBlank()) {
                 String normName = AddressUtil.normalize(buildingName);
                 List<BuildingRecord> nameFiltered = candidates.stream()
-                        .filter(b -> b.getName() != null && AddressUtil.normalize(b.getName()).contains(normName))
+                        // 카카오 건물명이 seed 이름보다 길 수도 있어서("OO센터 본관" vs "OO센터") 양방향으로 본다.
+                        .filter(b -> {
+                            if (b.getName() == null) return false;
+                            String n = AddressUtil.normalize(b.getName());
+                            return !n.isEmpty() && (n.contains(normName) || normName.contains(n));
+                        })
                         .collect(Collectors.toList());
                 if (!nameFiltered.isEmpty()) {
                     candidates = nameFiltered;

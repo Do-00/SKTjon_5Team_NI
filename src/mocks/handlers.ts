@@ -1,24 +1,11 @@
 import { http, HttpResponse } from 'msw';
 import { API_BASE_URL } from '@/src/lib/api-base-url';
-import type { EnergyMetrics } from '@/src/lib/eco-api';
+import { getExampleEnergyCost } from '@/src/data/energy-cost';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? '';
 
-// 등급별 예시 성적표 수치 — beec에 아직 없는 /api/energy-cost를 MSW가 대신 응답합니다.
-// 난방비(만원) · 절감 여지(%) · 탄소 배출(tCO₂) · 전부 실천 시 절감액(만원).
-// 값을 바꿔 가며 실험하세요. 표에 없는 등급은 '5' 값을 씁니다.
-const EXAMPLE_ENERGY_COST: Record<string, EnergyMetrics> = {
-  '1+++': { annualEnergyCostManwon: 38, percentileRank: 5, annualCarbonEmissionTons: 1.0, annualSavingsPotentialManwon: 4 },
-  '1++': { annualEnergyCostManwon: 52, percentileRank: 8, annualCarbonEmissionTons: 1.3, annualSavingsPotentialManwon: 8 },
-  '1+': { annualEnergyCostManwon: 66, percentileRank: 12, annualCarbonEmissionTons: 1.7, annualSavingsPotentialManwon: 14 },
-  '1': { annualEnergyCostManwon: 80, percentileRank: 16, annualCarbonEmissionTons: 2.0, annualSavingsPotentialManwon: 22 },
-  '2': { annualEnergyCostManwon: 94, percentileRank: 20, annualCarbonEmissionTons: 2.4, annualSavingsPotentialManwon: 32 },
-  '3': { annualEnergyCostManwon: 108, percentileRank: 24, annualCarbonEmissionTons: 2.8, annualSavingsPotentialManwon: 45 },
-  '4': { annualEnergyCostManwon: 124, percentileRank: 28, annualCarbonEmissionTons: 3.2, annualSavingsPotentialManwon: 62 },
-  '5': { annualEnergyCostManwon: 142, percentileRank: 31, annualCarbonEmissionTons: 3.6, annualSavingsPotentialManwon: 94 },
-  '6': { annualEnergyCostManwon: 163, percentileRank: 38, annualCarbonEmissionTons: 4.1, annualSavingsPotentialManwon: 120 },
-  '7': { annualEnergyCostManwon: 188, percentileRank: 45, annualCarbonEmissionTons: 4.7, annualSavingsPotentialManwon: 150 },
-};
+// 등급별 예시 성적표 수치는 src/data/energy-cost.ts 에 있습니다 — 값을 바꿔 가며 실험하세요.
+// MSW가 안 떠 있을 때도 성적표가 같은 표를 쓰도록 한 곳에 모아 두었습니다.
 
 // 가짜 유저 데이터
 const Users: Record<number, { id: number; email: string; nickname: string }> = {
@@ -29,7 +16,7 @@ export const handlers = [
   // 예시 난방비 (beec 백엔드 주소로 나가는 요청을 가로챔)
   http.get(`${API_BASE_URL}/api/energy-cost`, ({ request }) => {
     const gradeCode = new URL(request.url).searchParams.get('gradeCode') ?? '';
-    const cost = EXAMPLE_ENERGY_COST[gradeCode] ?? EXAMPLE_ENERGY_COST['5'];
+    const cost = getExampleEnergyCost(gradeCode);
     console.log('[MSW] GET /api/energy-cost', gradeCode, cost);
     return HttpResponse.json(cost);
   }),

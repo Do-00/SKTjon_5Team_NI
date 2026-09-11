@@ -16,16 +16,18 @@ const BEEC_API_BASE_URL = process.env.BEEC_API_BASE_URL ?? API_BASE_URL;
 
 export interface MatchResult {
   found: boolean;
+  /** seed.json record id of the matched building. Present only when `found`. */
+  rqid?: string;
   /** Building/site name, e.g. `"서울시 서초동1692-6 업무시설"`. Present only when `found`. */
   name?: string;
   /** Grade label with the `"등급"` suffix, e.g. `"1+등급"`. Present only when `found`. */
   grade?: string;
   /** `grade` without the suffix, e.g. `"1+"`. Present only when `found`. */
   gradeCode?: string;
-  /** Annual primary energy consumption, kWh/m²·yr. Present only when `found`. */
-  energyValue?: number;
+  /** Annual primary energy consumption, kWh/m²·yr. `null` when the record has no value (beec sends null, not 0). */
+  energyValue?: number | null;
   /** Same value as `energyValue`, named for the what-if simulator's `baseEnergy`. */
-  primaryEnergyKwh?: number;
+  primaryEnergyKwh?: number | null;
   /** `"주거용"` or `"주거용 이외"`. Present only when `found`. */
   purpose?: string;
   region?: string;
@@ -33,6 +35,8 @@ export interface MatchResult {
   district?: string;
   /** `"본인증"`, `"예비인증"`, or empty when the record has no certification. */
   certKind?: string;
+  /** The same record's flag — `false` means `grade`/`energyValue` come from a certificate. Absent from older beec builds. */
+  isEstimated?: boolean;
 }
 
 export interface ReportEstimate {
@@ -43,6 +47,14 @@ export interface ReportEstimate {
   estimatedGrade?: string;
   gradeDistribution?: Record<string, number>;
   lowSample?: boolean;
+  /** `estimatedGrade` without the suffix, e.g. `"2"`. */
+  gradeCode?: string;
+  /** Median primary energy of the comparison group, kWh/m²·yr. */
+  primaryEnergyKwh?: number;
+  /** The group actually used, e.g. `"주거용|서울|medium"` — `/api/report` silently widens when the exact cell is empty. */
+  groupKey?: string;
+  /** `groupKey` with spaces instead of `|`. */
+  scopeLabel?: string;
 }
 
 /** Building size bucket `/api/report` groups by — matches the Java backend's `sizeBucket` values. */
