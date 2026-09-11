@@ -1,16 +1,35 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button, Icon, ToastProvider, useToast } from "@/src/components/ui";
+import type { GradeCode } from "@/src/data/grades";
+import { SaveSummaryDialog } from "./SaveSummaryDialog";
 
 interface ReportActionsProps {
   buildingId: string;
   buildingName: string;
+  address: string;
+  completionYear: number;
+  useType: string;
+  grade: GradeCode;
+  isEstimated: boolean;
+  primaryEnergyKwh: number;
+  annualSavingsPotentialManwon: number | null;
 }
 
-function ReportActionButtons({ buildingId, buildingName }: ReportActionsProps) {
-  const router = useRouter();
+function ReportActionButtons({
+  buildingId,
+  buildingName,
+  address,
+  completionYear,
+  useType,
+  grade,
+  isEstimated,
+  primaryEnergyKwh,
+  annualSavingsPotentialManwon,
+}: ReportActionsProps) {
   const { show } = useToast();
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   async function handleShare() {
     const url = window.location.href;
@@ -45,32 +64,43 @@ function ReportActionButtons({ buildingId, buildingName }: ReportActionsProps) {
     }
   }
 
-  function handleSave() {
-    const nextPath = `/report/${buildingId}`;
-    router.push(`/login?next=${encodeURIComponent(nextPath)}`);
-  }
-
   return (
-    <div className="flex w-full gap-[var(--space-3)]">
-      <Button
-        variant="secondary"
-        size="md"
-        fullWidth
-        leadingIcon={<Icon name="share" size={20} />}
-        onClick={handleShare}
-      >
-        공유
-      </Button>
-      <Button
-        variant="secondary"
-        size="md"
-        fullWidth
-        leadingIcon={<Icon name="file-text" size={20} />}
-        onClick={handleSave}
-      >
-        저장
-      </Button>
-    </div>
+    <>
+      <div className="flex w-full gap-[var(--space-3)]">
+        <Button
+          variant="secondary"
+          size="md"
+          fullWidth
+          leadingIcon={<Icon name="share" size={20} />}
+          onClick={handleShare}
+        >
+          공유
+        </Button>
+        <Button
+          variant="secondary"
+          size="md"
+          fullWidth
+          leadingIcon={<Icon name="file-text" size={20} />}
+          onClick={() => setSaveDialogOpen(true)}
+        >
+          저장
+        </Button>
+      </div>
+
+      <SaveSummaryDialog
+        open={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        buildingId={buildingId}
+        buildingName={buildingName}
+        address={address}
+        completionYear={completionYear}
+        useType={useType}
+        grade={grade}
+        isEstimated={isEstimated}
+        primaryEnergyKwh={primaryEnergyKwh}
+        annualSavingsPotentialManwon={annualSavingsPotentialManwon}
+      />
+    </>
   );
 }
 
