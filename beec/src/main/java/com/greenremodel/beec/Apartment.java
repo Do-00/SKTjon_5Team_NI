@@ -49,6 +49,16 @@ public class Apartment {
      */
     private String labelSource;
 
+    /**
+     * 라벨을 뺀 이유. 뺐을 때만 값이 있습니다.
+     *
+     * 대표적으로 재건축입니다. 인증일자가 준공연도보다 15년 이상 늦으면 그 인증은
+     * 원래 건물의 것이 아닙니다 — 재건축으로 새로 지은 건물의 인증값이 이름 매칭으로
+     * 옛 단지에 붙은 것입니다. 1984년 준공 단지에 78.1 kWh(패시브 수준)가 붙어 있던 것이 그 예입니다.
+     * 그대로 두면 모델이 "오래된 아파트일수록 효율이 좋다" 를 학습합니다.
+     */
+    private String excludedReason;
+
     public String getAptCode() { return aptCode; }
     public void setAptCode(String v) { this.aptCode = v; }
     public String getName() { return name; }
@@ -99,4 +109,6 @@ public class Apartment {
     public void setMatchedBy(String v) { this.matchedBy = v; }
     public String getLabelSource() { return labelSource; }
     public void setLabelSource(String v) { this.labelSource = v; }
+    public String getExcludedReason() { return excludedReason; }
+    public void setExcludedReason(String v) { this.excludedReason = v; }
 }
