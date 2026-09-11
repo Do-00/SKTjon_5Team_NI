@@ -3,11 +3,14 @@ import type { Metadata } from "next";
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { Card, Notice } from "@/src/components/ui";
 import { GradeScale } from "@/src/components/domain";
+import { DistrictMap } from "@/src/components/domain/DistrictMap";
+import districtCoords from "@/src/data/district-coords.json";
 import { getBuildingById, type ApartmentReportInfo, type BuildingSummary, type LiveMatchInfo } from "@/src/data/buildings";
 import type { ApartmentDetail, ReportEstimate } from "@/src/lib/beec-client";
 import { getEcoCheckReport } from "@/src/data/account";
 import { PRIMARY_ENERGY_UNIT } from "@/src/data/grades";
 import { formatNumber } from "@/src/lib/format";
+import { getDistrict } from "@/src/lib/audience";
 import { HEATING_TYPE_OPTIONS, readApartmentChecklistParams } from "@/src/lib/apartment-checklist";
 import type { BasisRow } from "./_components/ReportOverview";
 import { ReportBody } from "./_components/ReportBody";
@@ -255,6 +258,18 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
   const live = building.liveMatch;
   const estimate = building.estimate;
 
+  /**
+   * 지도에서 강조할 동네.
+   *
+   * 출처가 셋이라 순서대로 봅니다.
+   *   apartment  K-apt 단지 → 시군구가 확실합니다
+   *   live       /api/match 실측 → district 가 옵니다
+   *   그 외      주소에서 "OO구" 를 뽑습니다
+   * 못 찾으면 undefined 로 둡니다. 지도는 강조 없이 전국만 그립니다.
+   */
+  const selectedDistrict =
+    building.apartment?.sgg ?? live?.district ?? getDistrict(building.address);
+
   const metaLine = building.apartment
     ? [[building.apartment.sgg, building.apartment.emd].filter(Boolean).join(" "), "공동주택(아파트)"]
         .filter(Boolean)
@@ -354,6 +369,19 @@ export default async function ReportPage({ params, searchParams }: PageProps<"/r
               hintSize="sm"
             />
             <GradeScale value={building.grade} selectable />
+          </Card>
+
+          <Card padding="lg" className="flex flex-col gap-[var(--space-4)]">
+            <SectionHeader
+              title="동네 비교"
+              hint="같은 용도 건물의 인증 실적을 지역끼리 비교합니다. 회색은 인증 사례가 부족해 등급을 매기지 않은 지역입니다."
+              hintSize="sm"
+            />
+            {/*
+              purpose 는 "주거용" 으로 고정합니다. 백엔드가 아파트 한정으로 좁혀지면서
+              주거용 이외 표본을 걷어냈기 때문에, 다른 값을 넘기면 지도가 빕니다.
+            */}
+            <DistrictMap coords={districtCoords.districts} selected={selectedDistrict} purpose="주거용" />
           </Card>
         </ReportBody>
       </PageSection>
