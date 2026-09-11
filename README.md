@@ -23,9 +23,16 @@ cd beec
 ./mvnw spring-boot:run   # Windows: .\mvnw.cmd spring-boot:run
 ```
 
-기본 포트는 `8080`입니다. 프론트엔드(`src/lib/beec-client.ts`)는 기본값으로
-`http://localhost:8080`을 호출하며, 다른 주소를 쓰려면 `.env.local`에
-`BEEC_API_BASE_URL=...`을 넣으세요.
+기본 포트는 `8080`입니다. 프론트엔드는 `.env.local`의
+`NEXT_PUBLIC_API_BASE_URL`(기본값 `http://localhost:8080`)로 호출합니다.
+메인 화면은 카카오 우편번호 검색 결과(지번·도로명·건물명)로 브라우저에서
+바로 `/api/match`를 부르고(`src/lib/eco-api.ts`), 서버 컴포넌트는
+`src/lib/beec-client.ts`를 씁니다. 서버 쪽만 다른 주소를 쓰려면
+`BEEC_API_BASE_URL=...`을 추가로 넣으세요.
+
+메인 성적표의 연간 난방비·절감 여지는 beec에 아직 없는
+`/api/energy-cost`를 개발 모드의 MSW(`src/mocks/handlers.ts`의
+`EXAMPLE_ENERGY_COST`)가 예시 값으로 대신 응답합니다.
 
 주소 검색(`searchBuildings`)은 먼저 beec의 `/api/match`(동+번지 실측 데이터)를
 시도하고, 매칭이 없거나 beec가 꺼져 있으면 `src/data/buildings.ts`의

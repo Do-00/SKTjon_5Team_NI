@@ -1,13 +1,12 @@
 import { PageSection, SectionHeader, SiteShell } from "@/src/components/layout";
 import { ButtonLink, Card, Icon } from "@/src/components/ui";
 import type { IconName } from "@/src/components/ui";
-import { EnergyGradeBadge, GradeScale, ProgramCard } from "@/src/components/domain";
+import { GradeScale, ProgramCard } from "@/src/components/domain";
 import { getEcoCheckReport, getUserAccount } from "@/src/data/account";
 import { getBuildingById } from "@/src/data/buildings";
 import { getSupportPrograms } from "@/src/data/programs";
 import { describeAudience } from "@/src/lib/audience";
-import { formatManwon, formatPercent } from "@/src/lib/format";
-import { SearchBar } from "./search/_components/SearchBar";
+import { HomeHero } from "./_components/HomeHero";
 
 interface Step {
   icon: IconName;
@@ -45,55 +44,7 @@ export default async function Home() {
 
   return (
     <SiteShell>
-      {/* Hero */}
-      <section aria-labelledby="home-hero-title" className="bg-[var(--surface-brand)]">
-        <div className="eco-container grid items-center gap-[var(--space-12)] py-[var(--space-16)] lg:grid-cols-[1.1fr_0.9fr] lg:gap-[var(--space-16)] lg:py-[var(--space-20)]">
-          <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
-            <span className="inline-flex items-center gap-1.5 self-start whitespace-nowrap rounded-[var(--radius-pill)] bg-[var(--teal-100)] px-4 py-2 text-[16px] font-bold text-[var(--teal-800)]">
-              <Icon name="leaf" size={16} />
-              탄소중립 의사결정 플랫폼
-            </span>
-            <h1
-              id="home-hero-title"
-              className="font-brand text-[40px] font-black leading-[1.15] tracking-[-0.03em] text-white md:text-[56px]"
-            >
-              주소로 확인하는
-              <br />
-              우리 집 에너지 성적표
-            </h1>
-            <p className="max-w-[520px] text-[19px] leading-[1.65] text-[var(--teal-100)] md:text-[21px]">
-              인증 이력이 없는 건물도 등급을 추정해 드립니다. 소유주·임차인 유형에 따라 실천 방법과 정부 지원사업을
-              바로 안내합니다.
-            </p>
-            <SearchBar className="max-w-[620px]" />
-          </div>
-
-          <div className="flex justify-center">
-            <Card padding="lg" className="flex w-full max-w-[380px] flex-col items-center gap-[var(--space-5)]">
-              <p className="text-center text-[17px] text-[var(--text-muted)]">{address}</p>
-              <EnergyGradeBadge
-                grade={report.grade}
-                size="lg"
-                caption={report.gradeSource === "estimated" ? "추정 등급" : "인증 등급"}
-              />
-              <dl className="flex w-full justify-between border-t border-[var(--border-subtle)] pt-[var(--space-4)]">
-                <div>
-                  <dt className="text-[15px] text-[var(--text-muted)]">연간 난방비</dt>
-                  <dd className="whitespace-nowrap font-brand text-[24px] font-black text-[var(--text-strong)]">
-                    {formatManwon(report.annualEnergyCostManwon)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[15px] text-[var(--text-muted)]">절감 여지</dt>
-                  <dd className="whitespace-nowrap font-brand text-[24px] font-black text-[var(--teal-700)]">
-                    {formatPercent(report.percentileRank)}
-                  </dd>
-                </div>
-              </dl>
-            </Card>
-          </div>
-        </div>
-      </section>
+      <HomeHero />
 
       {/* Three steps */}
       <PageSection aria-labelledby="home-steps-title">

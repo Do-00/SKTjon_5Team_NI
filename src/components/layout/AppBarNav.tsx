@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "../ui/utils";
+import { useLastSearchHref } from "../../lib/last-search";
 import { buildSiteNav } from "./site-nav";
 
 export interface AppBarNavProps {
@@ -18,7 +19,7 @@ export interface AppBarNavProps {
  */
 export function AppBarNav({ defaultBuildingId, className }: AppBarNavProps) {
   const pathname = usePathname();
-  const items = buildSiteNav(pathname, defaultBuildingId);
+  const items = buildSiteNav(pathname, defaultBuildingId, useLastSearchHref());
 
   return (
     <nav aria-label="주요 메뉴" className={cn("items-center gap-[var(--space-2)]", className)}>

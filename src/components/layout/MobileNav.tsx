@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "../ui/icons";
+import { useLastSearchHref } from "../../lib/last-search";
 import { buildSiteNav } from "./site-nav";
 
 export interface MobileNavProps {
@@ -19,7 +20,7 @@ export interface MobileNavProps {
  */
 export function MobileNav({ defaultBuildingId }: MobileNavProps) {
   const pathname = usePathname();
-  const items = buildSiteNav(pathname, defaultBuildingId);
+  const items = buildSiteNav(pathname, defaultBuildingId, useLastSearchHref());
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);

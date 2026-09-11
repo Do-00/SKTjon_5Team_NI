@@ -1,16 +1,18 @@
 import { GRADE_ORDER, type GradeCode } from "../data/grades";
+import { API_BASE_URL } from "./api-base-url";
 
 /**
  * Client for the real `beec` Spring Boot backend (see `/beec` at the repo
  * root — run it with `./mvnw spring-boot:run`, defaults to port 8080).
  *
  * `matchAddress`/`estimateReport` run server-side only (Server Components,
- * route handlers), so the base URL is a plain server env var, not
- * `NEXT_PUBLIC_`. The constants and `toGradeCode` below have no Node
- * dependencies and are safe to import from Client Components too.
+ * route handlers). They use `NEXT_PUBLIC_API_BASE_URL` like the browser-side
+ * calls in `eco-api.ts`, unless the server-only `BEEC_API_BASE_URL` overrides
+ * it. The constants and `toGradeCode` below have no Node dependencies and are
+ * safe to import from Client Components too.
  */
 
-const BEEC_API_BASE_URL = process.env.BEEC_API_BASE_URL ?? "http://localhost:8080";
+const BEEC_API_BASE_URL = process.env.BEEC_API_BASE_URL ?? API_BASE_URL;
 
 export interface MatchResult {
   found: boolean;
@@ -18,11 +20,17 @@ export interface MatchResult {
   name?: string;
   /** Grade label with the `"등급"` suffix, e.g. `"1+등급"`. Present only when `found`. */
   grade?: string;
+  /** `grade` without the suffix, e.g. `"1+"`. Present only when `found`. */
+  gradeCode?: string;
   /** Annual primary energy consumption, kWh/m²·yr. Present only when `found`. */
   energyValue?: number;
+  /** Same value as `energyValue`, named for the what-if simulator's `baseEnergy`. */
+  primaryEnergyKwh?: number;
   /** `"주거용"` or `"주거용 이외"`. Present only when `found`. */
   purpose?: string;
   region?: string;
+  /** 시군구, e.g. `"마포구"`. */
+  district?: string;
   /** `"본인증"`, `"예비인증"`, or empty when the record has no certification. */
   certKind?: string;
 }
@@ -97,9 +105,15 @@ async function beecGet<T>(path: string, params: Record<string, string>): Promise
   return res.json() as Promise<T>;
 }
 
-/** Looks up a building by address against beec's 동+번지 실측 데이터 (`/api/match`). */
-export async function matchAddress(address: string): Promise<MatchResult> {
-  return beecGet<MatchResult>("/api/match", { roadAddress: address });
+/**
+ * Looks up a building by address against beec's 동+번지 실측 데이터 (`/api/match`).
+ * `buildingName` narrows lots with several buildings, same as the home page's browser-side call.
+ */
+export async function matchAddress(address: string, buildingName?: string): Promise<MatchResult> {
+  return beecGet<MatchResult>("/api/match", {
+    roadAddress: address,
+    ...(buildingName ? { buildingName } : {}),
+  });
 }
 
 /** Estimates a grade from 용도/지역/규모 alone, for addresses `matchAddress` can't find (`/api/report`). */

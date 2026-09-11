@@ -7,17 +7,18 @@ function isWithin(pathname: string, prefix: string): boolean {
 }
 
 /**
- * Site-wide primary navigation. "에너지 성적표" and "절감 하기" are scoped to a
- * building, so they follow the building currently in the URL
- * (`/report/:id`, `/guide/:id`) and fall back to the signed-in user's
+ * Site-wide primary navigation. "에너지 성적표" returns to the last search
+ * results (`reportHref`, see `useLastSearchHref`). "절감 하기" is scoped to a
+ * building, so it follows the building currently in the URL
+ * (`/report/:id`, `/guide/:id`) and falls back to the signed-in user's
  * primary building everywhere else.
  */
-export function buildSiteNav(pathname: string, defaultBuildingId: string): NavItem[] {
+export function buildSiteNav(pathname: string, defaultBuildingId: string, reportHref: string): NavItem[] {
   const buildingId = BUILDING_ROUTE.exec(pathname)?.[1] ?? defaultBuildingId;
   return [
     {
       label: "에너지 성적표",
-      href: `/report/${buildingId}`,
+      href: reportHref,
       active: isWithin(pathname, "/report") || isWithin(pathname, "/search"),
     },
     { label: "절감 하기", href: `/guide/${buildingId}`, active: isWithin(pathname, "/guide") },

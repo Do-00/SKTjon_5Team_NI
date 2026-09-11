@@ -23,7 +23,7 @@ export interface ReportMetrics {
   annualSavingsPotentialManwon: number;
 }
 
-interface ReportOverviewProps {
+export interface ReportOverviewProps {
   buildingId: string;
   buildingName: string;
   /** e.g. `"1998년 준공 · 공동주택 · 84㎡"`. */

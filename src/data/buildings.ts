@@ -1,4 +1,5 @@
 import { CURRENT_BUILDING_GRADE, type GradeCode } from "./grades";
+import { decodeAddressId, encodeAddressId } from "../lib/address-id";
 import { matchAddress, toGradeCode, type MatchResult } from "../lib/beec-client";
 
 /**
@@ -46,6 +47,21 @@ export interface BuildingSummary {
   heatingType: string;
   /** Past official certifications, newest first. Empty when `gradeSource` is `"estimated"`. */
   certificationHistory: CertificationRecord[];
+  /** What beec's `/api/match` actually returned, for live matches only (absent on fixtures). */
+  liveMatch?: LiveMatchInfo;
+}
+
+/** Raw `/api/match` fields, so the report shows beec's values instead of the fixture-shaped placeholders. */
+export interface LiveMatchInfo {
+  /** e.g. `"1+등급"`. */
+  gradeLabel: string;
+  /** kWh/m²·yr, or `null` if beec didn't send one. */
+  energyValue: number | null;
+  purpose: string;
+  region: string;
+  district: string;
+  /** `"본인증"`, `"예비인증"`, or `""`. */
+  certKind: string;
 }
 
 export interface SavedBuilding extends BuildingSummary {
@@ -161,24 +177,6 @@ const CANONICAL_QUERY_VARIANTS: readonly string[] = [
   normalizeForComparison(SEARCH_RESULTS[0].address),
 ];
 
-/** Prefix marking a `BuildingSummary.id` as a live beec match rather than a `SEARCH_RESULTS` fixture id. */
-const ADDRESS_ID_PREFIX = "addr-";
-
-/** Packs a searched address into a route-safe `/report/[buildingId]` segment beec can look up again. */
-function encodeAddressId(address: string): string {
-  return `${ADDRESS_ID_PREFIX}${Buffer.from(address, "utf-8").toString("base64url")}`;
-}
-
-/** Unpacks an `encodeAddressId` id back to the original address, or `null` for a fixture id like `"bld-001"`. */
-function decodeAddressId(id: string): string | null {
-  if (!id.startsWith(ADDRESS_ID_PREFIX)) return null;
-  try {
-    return Buffer.from(id.slice(ADDRESS_ID_PREFIX.length), "base64url").toString("utf-8");
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Building-register fields beec's `/api/match` doesn't return (준공연도,
  * 구조, 연면적, 난방방식, 단열기준 — that's the separate 건축HUB integration,
@@ -219,6 +217,14 @@ function toBuildingSummary(address: string, match: MatchResult): BuildingSummary
           },
         ]
       : [],
+    liveMatch: {
+      gradeLabel: match.grade ?? "",
+      energyValue: match.energyValue ?? null,
+      purpose: match.purpose ?? "",
+      region: match.region ?? "",
+      district: match.district ?? "",
+      certKind: match.certKind ?? "",
+    },
   };
 }
 
@@ -287,14 +293,14 @@ export async function searchBuildings(query?: string): Promise<SearchOutcome> {
  * (`"addr-…"`) re-queries `/api/match` with the address packed inside it —
  * beec has no persistent building ids of its own, only address matching.
  */
-export async function getBuildingById(id: string): Promise<BuildingSummary | undefined> {
+export async function getBuildingById(id: string, buildingName?: string): Promise<BuildingSummary | undefined> {
   const address = decodeAddressId(id);
   if (address === null) {
     return SEARCH_RESULTS.find((building) => building.id === id);
   }
 
   try {
-    const match = await matchAddress(address);
+    const match = await matchAddress(address, buildingName);
     return match.found ? toBuildingSummary(address, match) : undefined;
   } catch {
     return undefined;
