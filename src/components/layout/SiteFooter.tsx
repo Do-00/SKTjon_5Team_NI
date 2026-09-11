@@ -32,20 +32,20 @@ export async function SiteFooter() {
       <div className="eco-container grid grid-cols-1 gap-[var(--space-10)] py-[var(--space-12)] md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <p className="mb-[10px] font-brand text-[24px] font-black text-white">에코 체크</p>
-          <p className="max-w-[340px] text-[16px] leading-[1.7] text-[var(--teal-300)]">
+          <p className="max-w-[340px] text-[17px] leading-[1.7] text-[var(--teal-300)]">
             우리 집 에너지 등급부터 절감 방법, 지원사업까지 — 에코 체크 하나로 다 확인하세요.
           </p>
         </div>
 
         {linkGroups.map((group) => (
           <div key={group.title}>
-            <h2 className="mb-[var(--space-3)] font-sans text-[15px] font-bold tracking-normal text-white">
+            <h2 className="mb-[var(--space-3)] font-sans text-[17px] font-bold tracking-normal text-white">
               {group.title}
             </h2>
             <ul className="flex flex-col gap-[10px]">
               {group.links.map((link) => (
                 <li key={link.label}>
-                  <Link href={link.href} className="text-[16px] text-[var(--teal-300)] hover:text-white">
+                  <Link href={link.href} className="text-[17px] text-[var(--teal-300)] hover:text-white">
                     {link.label}
                   </Link>
                 </li>
@@ -56,7 +56,7 @@ export async function SiteFooter() {
       </div>
 
       <div className="border-t border-[var(--teal-800)]">
-        <p className="eco-container py-[var(--space-5)] text-[15px] text-[var(--teal-300)]">
+        <p className="eco-container py-[var(--space-5)] text-[17px] text-[var(--teal-300)]">
           추정 등급은 공공 데이터를 기반으로 산정한 참고값이며, 공식 에너지효율등급 인증을 대체하지 않습니다.
         </p>
       </div>

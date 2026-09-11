@@ -1,5 +1,4 @@
 import type { EcoAction, EcoActionDifficulty } from "../../data/actions";
-import { formatManwon } from "../../lib/format";
 import { Icon, type IconName } from "../ui/icons";
 import { cn } from "../ui/utils";
 
@@ -37,7 +36,7 @@ function getActionIcon(action: EcoAction): IconName {
   return CATEGORY_ICON[action.category] ?? "leaf";
 }
 
-/** Compact row for a recommended eco action: effort-tinted icon, title, effort level, and estimated savings. */
+/** Compact row for a recommended eco action: effort-tinted icon, title, and effort level. */
 export function ActionItem({ action, done = false, onToggle, className }: ActionItemProps) {
   const tone = EFFORT_TONE_VARS[action.difficulty];
   const surface =
@@ -62,7 +61,7 @@ export function ActionItem({ action, done = false, onToggle, className }: Action
           {action.title}
         </span>
         <span className="text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
-          {EFFORT_LABEL[action.difficulty]} · 월 {formatManwon(action.monthlySavingsManwon)} 절감
+          {EFFORT_LABEL[action.difficulty]}
         </span>
       </span>
     </>

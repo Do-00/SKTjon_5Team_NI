@@ -52,12 +52,14 @@ export default async function Home() {
                   >
                     <Icon name={step.icon} size={30} />
                   </span>
-                  <span aria-hidden="true" className="font-brand text-[24px] font-black text-[var(--teal-300)]">
+                  <span aria-hidden="true" className="font-brand text-[28px] font-black text-[var(--teal-600)]">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>
-                <h3 className="font-brand text-[22px] font-bold text-[var(--text-strong)]">{step.title}</h3>
-                <p className="text-[17px] leading-[1.65] text-[var(--text-body)]">{step.description}</p>
+                <h3 className="font-brand text-[24px] font-black text-[var(--text-strong)]">{step.title}</h3>
+                <p className="text-[length:var(--text-body-lg-size)] font-medium leading-[1.6] text-[var(--text-body)]">
+                  {step.description}
+                </p>
               </Card>
             </li>
           ))}
@@ -71,7 +73,6 @@ export default async function Home() {
             id="home-scale-title"
             title="등급 기준표"
             hint="다른 등급을 누르면 연간 단위면적당 1차에너지소요량을 볼 수 있습니다."
-            hintSize="sm"
           />
           <GradeScale value={report.grade} selectable />
         </Card>

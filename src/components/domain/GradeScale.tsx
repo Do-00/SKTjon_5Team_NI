@@ -62,7 +62,7 @@ export function GradeScale({ value, selectable = false, showLabels = true, class
                   aria-hidden="true"
                   className={cn(
                     "whitespace-nowrap font-brand font-bold tracking-[-0.04em]",
-                    code.length > 2 ? "text-[11px]" : "text-[15px]"
+                    code.length > 2 ? "text-[11px] sm:text-[14px]" : "text-[15px] sm:text-[18px]"
                   )}
                   style={{ color: current || expanded ? `var(${color})` : "var(--text-muted)" }}
                 >
@@ -110,7 +110,7 @@ export function GradeScale({ value, selectable = false, showLabels = true, class
           >
             {GRADES[open].label}
           </span>
-          <span className="min-w-0 flex-1 text-[length:var(--text-body-size)] text-[var(--text-body)]">
+          <span className="min-w-0 flex-1 text-[length:var(--text-body-size)] font-bold text-[var(--text-body)]">
             1차에너지소요량
           </span>
           <span className="whitespace-nowrap font-brand text-[24px] font-black text-[var(--text-strong)]">

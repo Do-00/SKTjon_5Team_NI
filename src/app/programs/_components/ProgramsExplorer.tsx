@@ -13,8 +13,6 @@ export interface ProgramsExplorerProps {
   programs: SupportProgram[];
   /** Filter id pre-selected from the `?tag=` query string on first load, if any. */
   initialFilter: string | null;
-  /** Who the "맞춤" matching is for, e.g. `"마포구 · 소유주 기준"`. */
-  audienceLabel: string;
 }
 
 const FILTER_BUTTON_BASE =
@@ -32,7 +30,7 @@ export function ProgramsExplorer(props: ProgramsExplorerProps) {
   );
 }
 
-function ProgramsExplorerInner({ programs, initialFilter, audienceLabel }: ProgramsExplorerProps) {
+function ProgramsExplorerInner({ programs, initialFilter }: ProgramsExplorerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
@@ -74,7 +72,7 @@ function ProgramsExplorerInner({ programs, initialFilter, audienceLabel }: Progr
 
   return (
     <div className="flex flex-col gap-[var(--space-5)]">
-      <SectionHeader as="h1" title="지원사업 매칭" hint={`${filteredPrograms.length}건 · ${audienceLabel}`} />
+      <SectionHeader as="h1" title="지원사업 매칭" hint={`${filteredPrograms.length}건`} />
 
       <div className="flex flex-col gap-[var(--space-3)] md:flex-row md:items-center">
         <div role="group" aria-label="지원사업 필터" className="flex flex-wrap gap-[var(--space-3)]">

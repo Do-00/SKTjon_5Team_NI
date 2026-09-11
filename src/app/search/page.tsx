@@ -62,7 +62,7 @@ export default async function SearchPage(props: PageProps<"/search">) {
         <SectionHeader
           as="h1"
           title="우리 건물 에너지 등급 검색"
-          description="도로명 주소를 입력하면 에너지효율등급과 인근 건물 비교 결과를 확인할 수 있어요."
+          description="카카오 주소 검색으로 도로명·지번·건물명을 찾으면 에너지효율등급과 인근 건물 비교 결과를 확인할 수 있어요."
         />
 
         <SearchBar defaultValue={query ?? ""} submitLabel="검색" className="max-w-2xl" />

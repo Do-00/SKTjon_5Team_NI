@@ -84,14 +84,14 @@ export default function AboutPage() {
                     <h2 className="font-sans text-[18px] font-bold tracking-normal text-[var(--text-strong)]">
                       {item.title}
                     </h2>
-                    <p className="text-[16px] leading-[1.6] text-[var(--text-muted)]">
+                    <p className="text-[17px] leading-[1.6] text-[var(--text-muted)]">
                       {item.description}
                     </p>
                     {item.source ? (
-                      <p className="mt-1.5 flex items-center gap-1 text-[14px] font-medium text-[var(--teal-700)]">
+                      <p className="mt-1.5 flex items-center gap-1 text-[17px] font-medium text-[var(--teal-700)]">
                         {item.source}
                         {item.url ? (
-                          <Icon name="external-link" size={14} />
+                          <Icon name="external-link" size={16} />
                         ) : null}
                       </p>
                     ) : null}

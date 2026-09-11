@@ -20,10 +20,10 @@ type ScriptStatus = "loading" | "ready" | "error";
 type DialogStep = "search" | "checklist" | "rejected";
 
 /**
- * Same white raised panel as `/search`'s `SearchBar`, but instead of free
- * text it opens the Kakao 우편번호 search in a dialog so the backend always
- * receives a normalized 도로명/지번 pair. The input is read-only and acts as
- * the trigger.
+ * White raised panel used by the home hero and `/search`'s `SearchBar`:
+ * instead of free text it opens the Kakao 우편번호 search in a dialog so the
+ * backend always receives a normalized 도로명/지번 pair. The input is
+ * read-only and acts as the trigger.
  */
 export function AddressSearchBar({ value = "", onSelect, submitLabel = "등급 확인하기", className }: AddressSearchBarProps) {
   const [status, setStatus] = useState<ScriptStatus>("loading");

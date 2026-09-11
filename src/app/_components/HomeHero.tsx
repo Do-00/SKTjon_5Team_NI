@@ -1,22 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card, Icon } from "@/src/components/ui";
-import { encodeAddressId } from "@/src/lib/address-id";
-import {
-  withApartmentChecklistParams,
-  type ApartmentChecklistAnswers,
-} from "@/src/lib/apartment-checklist";
-import { matchPostcodeAddress, toJibunAddress } from "@/src/lib/eco-api";
-import {
-  toSelectedAddress,
-  type KakaoPostcodeData,
-} from "@/src/lib/kakao-postcode";
-import { rememberLastSearch, searchHref } from "@/src/lib/last-search";
 import { AddressSearchBar } from "./AddressSearchBar";
-
-type LookupStatus = "idle" | "loading" | "error";
+import { useAddressLookup, type LookupStatus } from "./use-address-lookup";
 
 /** Same footprint as `EnergyGradeBadge size="lg"`, in neutral grey, for "no grade yet". */
 function UnknownGradeBadge({
@@ -34,7 +20,7 @@ function UnknownGradeBadge({
         <span aria-hidden="true">?</span>
         <span className="sr-only">등급 미확인</span>
       </span>
-      <span className="whitespace-nowrap text-[length:var(--text-caption-size)] font-medium text-[var(--text-muted)]">
+      <span className="whitespace-nowrap text-[18px] font-bold text-[var(--text-body)]">
         {caption}
       </span>
     </span>
@@ -49,54 +35,12 @@ const CAPTIONS: Record<LookupStatus, string> = {
 
 /**
  * Home hero: address search on the left, a grey "?" placeholder card on the
- * right. Picking an address checks beec's `/api/match` and moves on — to the
- * report (`/report/addr-…`) on a hit, or to `/search`'s 등급 추정 form when
- * beec has no 실측 data for it. The card only ever shows idle/loading/error.
+ * right. Picking an address runs `useAddressLookup` — the report on a beec
+ * hit, `/search`'s 등급 추정 form otherwise. The card only ever shows
+ * idle/loading/error.
  */
 export function HomeHero() {
-  const router = useRouter();
-  const [picked, setPicked] = useState<KakaoPostcodeData | null>(null);
-  const [status, setStatus] = useState<LookupStatus>("idle");
-  // Ignores responses for an address the user has since replaced.
-  const latestRequest = useRef(0);
-
-  const address = picked ? toSelectedAddress(picked) : "";
-
-  async function handleSelect(
-    data: KakaoPostcodeData,
-    checklist: ApartmentChecklistAnswers,
-  ) {
-    const requestId = ++latestRequest.current;
-    setPicked(data);
-    setStatus("loading");
-    // beec keys its match on the 지번 address, so that's what goes into the URL and the nav's "last search".
-    const jibunAddress = toJibunAddress(data) || toSelectedAddress(data);
-
-    try {
-      const match = await matchPostcodeAddress(data);
-      if (requestId !== latestRequest.current) return;
-
-      rememberLastSearch(jibunAddress);
-      if (match.found) {
-        // The 건물명 rides inside the id, so the report and the guide resolve the same building on multi-building lots.
-        // 체크리스트 답변(준공연도·건설사·난방방식)은 쿼리스트링으로 실어 보낸다 —
-        // beec가 아직 이 값들을 못 받아서, 성적표 페이지가 참고용으로만 보여준다.
-        router.push(
-          withApartmentChecklistParams(
-            `/report/${encodeAddressId(jibunAddress, data.buildingName)}`,
-            checklist,
-          ),
-        );
-      } else {
-        // 아파트 API는 지번을 모르고 이름/도로명으로만 찾으니, 건물명·도로명도 같이 넘긴다.
-        router.push(
-          searchHref(jibunAddress, data.buildingName, data.roadAddress),
-        );
-      }
-    } catch {
-      if (requestId === latestRequest.current) setStatus("error");
-    }
-  }
+  const { picked, address, status, handleSelect } = useAddressLookup();
 
   return (
     <section
@@ -105,8 +49,8 @@ export function HomeHero() {
     >
       <div className="eco-container grid items-center gap-[var(--space-12)] py-[var(--space-16)] lg:grid-cols-[1.1fr_0.9fr] lg:gap-[var(--space-16)] lg:py-[var(--space-20)]">
         <div className="flex min-w-0 flex-col gap-[var(--space-6)]">
-          <span className="inline-flex items-center gap-1.5 self-start whitespace-nowrap rounded-[var(--radius-pill)] bg-[var(--teal-100)] px-4 py-2 text-[16px] font-bold text-[var(--teal-800)]">
-            <Icon name="leaf" size={16} />
+          <span className="inline-flex items-center gap-1.5 self-start whitespace-nowrap rounded-[var(--radius-pill)] bg-[var(--teal-100)] px-4 py-2 text-[17px] font-bold text-[var(--teal-800)]">
+            <Icon name="leaf" size={17} />
             우리집은 몇등급이지?
           </span>
           <h1
@@ -117,9 +61,9 @@ export function HomeHero() {
             <br />
             우리 집 에너지 성적표
           </h1>
-          <p className="max-w-[520px] text-[19px] leading-[1.65] text-[var(--teal-100)] md:text-[21px]">
-            인증 이력이 없는 건물도 공공 데이터로 등급을 추정하고, ㅤ맞춤
-            지원사업까지 연결해 드려요.
+          {/* break-keep: 한국어는 기본적으로 글자 단위로 줄이 바뀌어 「맞/춤」처럼 단어가 쪼개지므로, 띄어쓰기 단위로만 줄을 바꿉니다. */}
+          <p className="max-w-[560px] break-keep text-[20px] font-medium leading-[1.65] text-white md:text-[22px]">
+            인증 이력이 없는 건물도 공공 데이터로 등급을 추정하고, 맞춤 지원사업까지 연결해 드려요.
           </p>
           <AddressSearchBar
             value={address}
@@ -142,7 +86,7 @@ export function HomeHero() {
               >
                 <Icon name="map-pin" size={18} />
               </span>
-              <p className="text-left text-[17px] leading-[1.4] break-keep text-[var(--text-muted)]">
+              <p className="text-left text-[18px] font-medium leading-[1.45] break-keep text-[var(--text-body)]">
                 {picked ? (
                   address
                 ) : (
@@ -161,13 +105,13 @@ export function HomeHero() {
             {status === "error" ? (
               <p
                 role="alert"
-                className="text-center text-[15px] leading-[1.6] break-keep text-[var(--status-danger)]"
+                className="text-center text-[17px] font-medium leading-[1.6] break-keep text-[var(--status-danger)]"
               >
                 등급 서버에 연결하지 못했어요. 백엔드가 켜져 있는지 확인한 뒤
                 다시 검색해 주세요.
               </p>
             ) : null}
-            <p className="w-full border-t border-[var(--border-subtle)] pt-[var(--space-4)] text-center text-[15px] text-[var(--text-muted)]">
+            <p className="w-full border-t border-[var(--border-subtle)] pt-[var(--space-4)] text-center text-[17px] font-medium text-[var(--text-body)]">
               가입 없이, 주소만으로 바로 확인할 수 있어요
             </p>
           </Card>

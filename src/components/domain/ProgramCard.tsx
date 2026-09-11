@@ -43,7 +43,7 @@ export function ProgramCard({ program, href, onSelect, maxTags = 2, className }:
     <>
       <span className="flex items-start gap-[var(--space-3)]">
         <span className="block min-w-0 flex-1">
-          <span className="mb-1 block text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
+          <span className="mb-1 block text-[length:var(--text-body-size)] text-[var(--text-muted)]">
             {program.provider}
           </span>
           <TitleTag className="block font-brand text-[length:var(--text-subhead-size)] font-bold leading-[1.35] tracking-[var(--tracking-tight)] text-[var(--text-strong)]">
@@ -76,7 +76,7 @@ export function ProgramCard({ program, href, onSelect, maxTags = 2, className }:
             </Badge>
           ))}
         </span>
-        <span className="inline-flex items-start gap-1.5 text-[length:var(--text-caption-size)] text-[var(--text-muted)]">
+        <span className="inline-flex items-start gap-1.5 text-[length:var(--text-body-size)] text-[var(--text-muted)]">
           <Icon name="calendar" size={16} className="mt-0.5 shrink-0" />
           {formatProgramDeadline(program.deadline)}
         </span>

@@ -118,7 +118,7 @@ export function EstimationMethod() {
             <Card className="flex h-full items-start gap-[var(--space-4)]">
               <span
                 aria-hidden
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--surface-brand-soft)] font-sans text-[15px] font-bold text-[var(--teal-700)]"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--surface-brand-soft)] font-sans text-[17px] font-bold text-[var(--teal-700)]"
               >
                 {s.no}
               </span>
@@ -129,9 +129,9 @@ export function EstimationMethod() {
                     {s.title}
                   </h3>
                 </div>
-                <p className="text-[16px] leading-[1.65] text-[var(--text-body)]">{s.body}</p>
+                <p className="text-[17px] leading-[1.65] text-[var(--text-body)]">{s.body}</p>
                 {s.note ? (
-                  <p className="text-[14px] leading-[1.5] text-[var(--text-muted)]">{s.note}</p>
+                  <p className="text-[17px] leading-[1.5]text-[var(--text-muted)]">{s.note}</p>
                 ) : null}
               </div>
             </Card>
@@ -145,7 +145,7 @@ export function EstimationMethod() {
           <h3 className="font-sans text-[20px] font-bold tracking-normal text-[var(--text-strong)]">
             모델이 무엇을 보는가
           </h3>
-          <p className="text-[15px] leading-[1.6] text-[var(--text-muted)]">
+          <p className="text-[17px] leading-[1.6] text-[var(--text-muted)]">
             학습된 모델이 실제로 각 항목에 둔 비중입니다. 사람이 정한 가중치가 아니라 데이터에서 측정된 값입니다.
           </p>
         </div>
@@ -154,8 +154,8 @@ export function EstimationMethod() {
           {FACTORS.map((f) => (
             <li key={f.label} className="flex flex-col gap-1.5">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-[16px] font-bold text-[var(--text-strong)]">{f.label}</span>
-                <span className="shrink-0 text-[15px] font-bold tabular-nums text-[var(--teal-700)]">
+                <span className="text-[17px] font-bold text-[var(--text-strong)]">{f.label}</span>
+                <span className="shrink-0 text-[17px] font-bold tabular-nums text-[var(--teal-700)]">
                   {f.weight}%
                 </span>
               </div>
@@ -168,7 +168,7 @@ export function EstimationMethod() {
                   style={{ width: `${f.weight}%` }}
                 />
               </span>
-              <p className="text-[14px] leading-[1.55] text-[var(--text-muted)]">{f.reason}</p>
+              <p className="text-[17px] leading-[1.55] text-[var(--text-muted)]">{f.reason}</p>
             </li>
           ))}
         </ul>
@@ -180,7 +180,7 @@ export function EstimationMethod() {
           <h3 className="font-sans text-[20px] font-bold tracking-normal text-[var(--text-strong)]">
             결과는 네 갈래로 나뉩니다
           </h3>
-          <p className="text-[15px] leading-[1.6] text-[var(--text-muted)]">
+          <p className="text-[17px] leading-[1.6] text-[var(--text-muted)]">
             모든 단지에 등급을 붙이지 않습니다. 근거가 부족하면 부족하다고 말합니다.
           </p>
         </div>
@@ -214,12 +214,12 @@ export function EstimationMethod() {
               className={`flex flex-col gap-1.5 rounded-[var(--radius-md)] border p-4 ${OUTCOME_STYLE[o.tone]}`}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[16px] font-bold">{o.label}</span>
-                <span className="text-[15px] font-bold tabular-nums">
+                <span className="text-[17px] font-bold">{o.label}</span>
+                <span className="text-[17px] font-bold tabular-nums">
                   {o.count.toLocaleString("ko-KR")}개
                 </span>
               </div>
-              <p className="text-[14px] leading-[1.55] text-[var(--text-body)]">{o.desc}</p>
+              <p className="text-[17px] leading-[1.55] text-[var(--text-body)]">{o.desc}</p>
             </li>
           ))}
         </ul>
@@ -233,7 +233,7 @@ export function EstimationMethod() {
             <h3 className="font-sans text-[20px] font-bold tracking-normal text-[var(--text-strong)]">
               모델 성능을 공개합니다
             </h3>
-            <p className="text-[15px] leading-[1.6] text-[var(--text-body)]">
+            <p className="text-[17px] leading-[1.6] text-[var(--text-body)]">
               학습에 쓰지 않은 데이터로 측정한 값입니다. 숨길 이유가 없다고 생각합니다.
             </p>
           </div>
@@ -247,18 +247,18 @@ export function EstimationMethod() {
             { k: "추정 제외", v: "48", u: "%" },
           ].map((m) => (
             <div key={m.k} className="flex flex-col gap-0.5">
-              <dt className="text-[14px] text-[var(--text-muted)]">{m.k}</dt>
+              <dt className="text-[17px] text-[var(--text-muted)]">{m.k}</dt>
               <dd className="font-sans text-[24px] font-bold tabular-nums text-[var(--teal-800)]">
                 {m.v}
                 {m.u ? (
-                  <span className="ml-1 text-[13px] font-medium text-[var(--text-muted)]">{m.u}</span>
+                  <span className="ml-1 text-[15px] font-medium text-[var(--text-muted)]">{m.u}</span>
                 ) : null}
               </dd>
             </div>
           ))}
         </dl>
 
-        <p className="text-[14px] leading-[1.6] text-[var(--text-muted)]">
+        <p className="text-[17px] leading-[1.6] text-[var(--text-muted)]">
           비교 기준: 같은 조건 단지들의 중앙값만 쓰면 평균 오차가 41.0입니다. 모델은 그보다 45% 정확합니다.
         </p>
       </Card>
@@ -267,15 +267,15 @@ export function EstimationMethod() {
       <Card tone="accent" padding="lg" className="flex items-start gap-[var(--space-4)]">
         <Icon name="info" size={28} className="shrink-0 text-[var(--celadon-700)]" />
         <div className="flex flex-col gap-2">
-          <h3 className="font-sans text-[17px] font-bold tracking-normal text-[var(--text-strong)]">
+          <h3 className="font-sans text-[20px] font-bold tracking-normal text-[var(--text-strong)]">
             알고 있는 한계
           </h3>
-          <p className="text-[16px] leading-[1.7] text-[var(--text-body)]">
+          <p className="text-[17px] leading-[1.7] text-[var(--text-body)]">
             학습에 쓴 인증 사례가 신축에 몰려 있습니다. 1987년 단열기준 시기 아파트는 서울에 1,088개인데 인증받은
             곳이 23개뿐이라, 이 시기 단지는 대부분 추정하지 않습니다. 정작 도움이 필요한 노후 아파트에 데이터가
             없다는 것이 저희가 확인한 가장 큰 문제입니다.
           </p>
-          <p className="text-[16px] leading-[1.7] text-[var(--text-body)]">
+          <p className="text-[17px] leading-[1.7] text-[var(--text-body)]">
             또한 에너지효율등급은 표준 사용조건을 가정한 <strong className="font-bold">건물 자체의 성능</strong>
             이고, 실제 난방비는 여기에 거주 방식이 곱해진 결과입니다. 두 가지는 같지 않습니다.
           </p>

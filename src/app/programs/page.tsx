@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { getUserAccount } from "@/src/data/account";
-import { getBuildingById } from "@/src/data/buildings";
 import { getSupportPrograms } from "@/src/data/programs";
 import { PageSection, SiteShell } from "@/src/components/layout";
-import { describeAudience } from "@/src/lib/audience";
 import { ProgramsExplorer } from "./_components/ProgramsExplorer";
 
 export const metadata: Metadata = {
@@ -18,8 +15,7 @@ function readInitialTag(value: string | string[] | undefined): string | null {
 
 /**
  * Server shell for the support-programs list. Awaits `searchParams` for the
- * `?tag=` deep link, fetches every fixture program plus the signed-in user's
- * building (for the "마포구 · 소유주 기준" hint), and hands them to the
+ * `?tag=` deep link, fetches every fixture program, and hands them to the
  * `ProgramsExplorer` client island for filtering, the notification
  * switch/toast, and the leave-confirmation dialog.
  */
@@ -27,17 +23,12 @@ export default async function ProgramsPage({ searchParams }: PageProps<"/program
   const resolvedSearchParams = await searchParams;
   const initialFilter = readInitialTag(resolvedSearchParams.tag);
 
-  const [programs, account] = await Promise.all([getSupportPrograms(), getUserAccount()]);
-  const building = await getBuildingById(account.primaryBuildingId);
+  const programs = await getSupportPrograms();
 
   return (
     <SiteShell>
       <PageSection>
-        <ProgramsExplorer
-          programs={programs}
-          initialFilter={initialFilter}
-          audienceLabel={describeAudience(building?.address ?? "", account.userType)}
-        />
+        <ProgramsExplorer programs={programs} initialFilter={initialFilter} />
       </PageSection>
     </SiteShell>
   );

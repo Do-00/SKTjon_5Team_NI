@@ -292,17 +292,23 @@ export function ReportOverview({
             title="건물 정보"
             hint={showingProjection ? "개선 후 예상치" : "공공 데이터 기반"}
           />
-          <dl className="mt-[var(--space-5)] grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-4)] md:grid-cols-2">
+          {/*
+            오른쪽 칸 폭이 좁은 lg 구간은 한 줄에 한 항목만 둡니다. 「그룹 대표 1차에너지소요량」처럼
+            라벨이 길면 값이 들어갈 자리가 없어 잘리므로, 한 줄에 안 들어가면 값이 다음 줄로 내려갑니다.
+          */}
+          <dl className="mt-[var(--space-5)] grid grid-cols-1 gap-x-[var(--space-8)] gap-y-[var(--space-4)] md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {displayBasisRows.map((row) => (
               <div
                 key={row.label}
-                className="flex min-h-12 items-center gap-[var(--space-3)] border-b border-[var(--border-subtle)] pb-[var(--space-2)]"
+                className="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-x-[var(--space-3)] gap-y-[var(--space-1)] border-b border-[var(--border-subtle)] pb-[var(--space-2)]"
               >
-                <dt className="flex shrink-0 items-center gap-[var(--space-3)] whitespace-nowrap text-[17px] text-[var(--text-body)]">
+                <dt className="flex min-w-0 items-center gap-[var(--space-3)] break-keep text-[17px] text-[var(--text-body)]">
                   <Icon name={row.icon} size={22} className="shrink-0 text-[var(--text-muted)]" />
                   {row.label}
                 </dt>
-                <dd className="min-w-0 flex-1 text-right text-[17px] font-bold text-[var(--text-strong)]">{row.value}</dd>
+                <dd className="ml-auto min-w-0 break-keep text-right text-[17px] font-bold text-[var(--text-strong)]">
+                  {row.value}
+                </dd>
               </div>
             ))}
           </dl>
