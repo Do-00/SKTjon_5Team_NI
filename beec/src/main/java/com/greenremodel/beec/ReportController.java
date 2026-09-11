@@ -89,23 +89,17 @@ public class ReportController {
             return Map.of("found", false);
         }
 
-        // 인증 레코드 중 191건은 energyValue 가 0(값 미기재)이라, 0 을 그대로 내보내면 성적표에 "0 kWh" 로 찍힌다.
-        Double energy = matched.getEnergyValue() > 0 ? matched.getEnergyValue() : null;
-
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("found", true);
-        out.put("rqid", matched.getRqid());
         out.put("name", matched.getName() == null ? "" : matched.getName());
         out.put("grade", matched.getGrade());
         out.put("gradeCode", GradeTable.toCode(matched.getGrade()));
-        out.put("energyValue", energy);
-        out.put("primaryEnergyKwh", energy);   // 시뮬레이터의 baseEnergy
+        out.put("energyValue", matched.getEnergyValue());
+        out.put("primaryEnergyKwh", matched.getEnergyValue());   // 시뮬레이터의 baseEnergy
         out.put("purpose", matched.getPurpose());
         out.put("region", matched.getRegion());
         out.put("district", matched.getDistrict());
         out.put("certKind", matched.getCertKind() == null ? "" : matched.getCertKind());
-        // grade/energyValue 와 같은 레코드의 값. 프론트는 이걸로 인증 등급/추정 등급을 가른다.
-        out.put("isEstimated", matched.getIsEstimated());
         return out;
     }
 }

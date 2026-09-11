@@ -82,8 +82,21 @@ export function DistrictMap({
   className,
 }: Props) {
   const boxRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
   const overlaysRef = useRef<any[]>([]);
+
+  /**
+   * 지도 인스턴스는 ref 가 아니라 state 로 둡니다.
+   *
+   * ref 에 넣으면 지도가 만들어져도 리렌더가 일어나지 않습니다. 카카오 SDK 는
+   * 네트워크에서 받아오는 것이라 거의 항상 /api/districts 응답보다 늦게 준비되는데,
+   * 그러면 "원 그리기" 이펙트가 데이터만 보고 한 번 돌 때 지도는 아직 null 이고,
+   * 그 뒤로는 다시 돌 이유가 없어서 원이 영영 안 그려집니다.
+   * (지도는 기본 중심·기본 레벨 그대로 남아 평양·다롄이 보이는 그 화면이 됩니다.)
+   *
+   * state 로 두면 지도 생성이 곧 리렌더라서 이펙트가 다시 돌고, 둘 중 무엇이
+   * 먼저 준비되든 순서와 무관하게 그려집니다.
+   */
+  const [map, setMap] = useState<any>(null);
 
   const [stats, setStats] = useState<DistrictStat[] | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
@@ -124,11 +137,14 @@ export function DistrictMap({
     let alive = true;
     loadKakaoSdk(appKey)
       .then(() => {
-        if (!alive || !boxRef.current || mapRef.current) return;
-        mapRef.current = new window.kakao.maps.Map(boxRef.current, {
-          center: new window.kakao.maps.LatLng(36.4, 127.9),
-          level: region ? 9 : 13,
-        });
+        if (!alive || !boxRef.current) return;
+        setMap((prev: any) =>
+          prev ??
+          new window.kakao.maps.Map(boxRef.current, {
+            center: new window.kakao.maps.LatLng(36.4, 127.9),
+            level: region ? 9 : 13,
+          }),
+        );
       })
       .catch(() => alive && setMapFailed(true));
     return () => {
@@ -138,7 +154,6 @@ export function DistrictMap({
 
   // 3. 원 그리기
   useEffect(() => {
-    const map = mapRef.current;
     if (!map || joined.length === 0) return;
 
     overlaysRef.current.forEach((o) => o.setMap(null));
@@ -196,8 +211,16 @@ export function DistrictMap({
       overlaysRef.current.push(overlay);
     });
 
-    if (!bounds.isEmpty()) map.setBounds(bounds, 40, 40, 40, 40);
-  }, [joined, selected]);
+    // relayout 을 먼저 불러야 합니다. 지도가 만들어질 때 이 div 는 아직 폭·높이가
+    // 확정되지 않은 경우가 있고, 그 상태에서 setBounds 를 부르면 엉뚱한 배율로
+    // 잡힙니다. 한 프레임 미뤄서 레이아웃이 끝난 뒤에 맞춥니다.
+    if (!bounds.isEmpty()) {
+      requestAnimationFrame(() => {
+        map.relayout();
+        map.setBounds(bounds, 40, 40, 40, 40);
+      });
+    }
+  }, [map, joined, selected]);
 
   // ── 화면 ────────────────────────────────────────────
 

@@ -1,13 +1,6 @@
 import { CURRENT_BUILDING_GRADE, type GradeCode } from "./grades";
-import { decodeAddressIdParts, decodeEstimateId, encodeAddressId, type EstimateIdParts } from "../lib/address-id";
-import {
-  estimateReport,
-  matchAddress,
-  SIZE_BUCKET_OPTIONS,
-  toGradeCode,
-  type MatchResult,
-  type ReportEstimate,
-} from "../lib/beec-client";
+import { decodeAddressId, encodeAddressId } from "../lib/address-id";
+import { matchAddress, toGradeCode, type MatchResult } from "../lib/beec-client";
 
 /**
  * Building fixtures for the Eco Check prototype: address search results and
@@ -56,32 +49,19 @@ export interface BuildingSummary {
   certificationHistory: CertificationRecord[];
   /** What beec's `/api/match` actually returned, for live matches only (absent on fixtures). */
   liveMatch?: LiveMatchInfo;
-  /** What beec's `/api/report` estimated, for addresses with no 실측 record (absent on fixtures and live matches). */
-  estimate?: EstimateInfo;
 }
 
 /** Raw `/api/match` fields, so the report shows beec's values instead of the fixture-shaped placeholders. */
 export interface LiveMatchInfo {
   /** e.g. `"1+등급"`. */
   gradeLabel: string;
-  /** kWh/m²·yr, or `null` if the record has no value (beec sent null, or 0 from an older build). */
+  /** kWh/m²·yr, or `null` if beec didn't send one. */
   energyValue: number | null;
   purpose: string;
   region: string;
   district: string;
   /** `"본인증"`, `"예비인증"`, or `""`. */
   certKind: string;
-}
-
-/** The `/api/report` comparison group behind an estimated grade. */
-export interface EstimateInfo {
-  purpose: string;
-  region: string;
-  /** Label of the 규모 the user picked, e.g. `"중형"`. */
-  sizeLabel: string;
-  /** Buildings in the comparison group. */
-  sampleCount: number;
-  lowSample: boolean;
 }
 
 export interface SavedBuilding extends BuildingSummary {
@@ -212,31 +192,25 @@ const PLACEHOLDER_BUILDING_DETAILS = {
 } as const;
 
 /** Maps a beec `/api/match` hit onto the `BuildingSummary` shape the rest of the app already renders. */
-function toBuildingSummary(address: string, match: MatchResult, buildingName?: string): BuildingSummary {
+function toBuildingSummary(address: string, match: MatchResult): BuildingSummary {
   const grade = toGradeCode(match.grade) ?? CURRENT_BUILDING_GRADE;
-  // Decide from the matched record's own `isEstimated`; an older beec without it falls back to "has a certificate kind".
-  const isCertified =
-    match.isEstimated === undefined
-      ? match.certKind === "본인증" || match.certKind === "예비인증"
-      : !match.isEstimated;
-  // Some certificates carry energyValue 0 (no value recorded) — that's missing data, not 0 kWh/m²·yr.
-  const energyValue = match.energyValue ? match.energyValue : null;
+  const isCertified = match.certKind === "본인증" || match.certKind === "예비인증";
 
   return {
-    id: encodeAddressId(address, buildingName),
+    id: encodeAddressId(address),
     name: match.name || address,
     address,
     grade,
     distanceMeters: 0,
     gradeSource: isCertified ? "certified" : "estimated",
-    primaryEnergyKwh: energyValue ?? 0,
+    primaryEnergyKwh: match.energyValue ?? 0,
     useType: match.purpose ?? "정보 없음",
     ...PLACEHOLDER_BUILDING_DETAILS,
     certificationHistory: isCertified
       ? [
           {
             grade,
-            primaryEnergyKwh: energyValue ?? 0,
+            primaryEnergyKwh: match.energyValue ?? 0,
             certifiedAt: `${PLACEHOLDER_BUILDING_DETAILS.completionYear}-01-01`,
             certId: match.certKind ?? "정보 없음",
             issuer: "한국에너지공단",
@@ -245,40 +219,11 @@ function toBuildingSummary(address: string, match: MatchResult, buildingName?: s
       : [],
     liveMatch: {
       gradeLabel: match.grade ?? "",
-      energyValue,
+      energyValue: match.energyValue ?? null,
       purpose: match.purpose ?? "",
       region: match.region ?? "",
       district: match.district ?? "",
       certKind: match.certKind ?? "",
-    },
-  };
-}
-
-/** Maps a beec `/api/report` estimate onto `BuildingSummary`, so it renders in the same report layout as a live match. */
-function toEstimatedBuildingSummary(
-  id: string,
-  parts: EstimateIdParts,
-  sizeLabel: string,
-  grade: GradeCode,
-  result: ReportEstimate,
-): BuildingSummary {
-  return {
-    id,
-    name: parts.address,
-    address: parts.address,
-    grade,
-    distanceMeters: 0,
-    gradeSource: "estimated",
-    primaryEnergyKwh: result.primaryEnergyKwh ?? 0,
-    useType: parts.purpose,
-    ...PLACEHOLDER_BUILDING_DETAILS,
-    certificationHistory: [],
-    estimate: {
-      purpose: parts.purpose,
-      region: parts.region,
-      sizeLabel,
-      sampleCount: result.sampleCount ?? 0,
-      lowSample: result.lowSample ?? false,
     },
   };
 }
@@ -342,43 +287,21 @@ export async function searchBuildings(query?: string): Promise<SearchOutcome> {
   return { buildings, offerEstimateFallback: false };
 }
 
-/** Re-runs the `/api/report` estimate an `est-` id describes. */
-async function getEstimatedBuilding(id: string, parts: EstimateIdParts): Promise<BuildingSummary | undefined> {
-  const size = SIZE_BUCKET_OPTIONS.find((option) => option.value === parts.sizeBucket);
-  if (!size) return undefined;
-
-  try {
-    const result = await estimateReport(parts.purpose, parts.region, size.value);
-    const grade = result.found ? toGradeCode(result.estimatedGrade) : null;
-    return grade ? toEstimatedBuildingSummary(id, parts, size.label, grade, result) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * Returns a single building by id: a fixture id (`"bld-001"`) looks up
- * `SEARCH_RESULTS` directly, a beec-backed id (`"addr-…"`) re-queries
- * `/api/match` with the address (and 건물명, if any) packed inside it — beec
- * has no persistent building ids of its own, only address matching — and an
- * estimate id (`"est-…"`) re-runs `/api/report` for an address with no 실측 record.
- * `buildingName` is only for older `?bn=` links whose id has no name inside.
+ * `SEARCH_RESULTS` directly, while a beec-backed id from `searchBuildings`
+ * (`"addr-…"`) re-queries `/api/match` with the address packed inside it —
+ * beec has no persistent building ids of its own, only address matching.
  */
 export async function getBuildingById(id: string, buildingName?: string): Promise<BuildingSummary | undefined> {
-  const estimate = decodeEstimateId(id);
-  if (estimate) {
-    return getEstimatedBuilding(id, estimate);
-  }
-
-  const parts = decodeAddressIdParts(id);
-  if (parts === null) {
+  const address = decodeAddressId(id);
+  if (address === null) {
     return SEARCH_RESULTS.find((building) => building.id === id);
   }
 
-  const name = parts.buildingName ?? buildingName;
   try {
-    const match = await matchAddress(parts.address, name);
-    return match.found ? toBuildingSummary(parts.address, match, name) : undefined;
+    const match = await matchAddress(address, buildingName);
+    return match.found ? toBuildingSummary(address, match) : undefined;
   } catch {
     return undefined;
   }

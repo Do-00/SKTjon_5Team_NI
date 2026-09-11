@@ -47,7 +47,7 @@ function buildBasisRows(building: BuildingSummary): BasisRow[] {
 
 /** Rows for a live beec match — only what `/api/match` returned, no placeholders. */
 function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
-  return [
+  const rows: BasisRow[] = [
     { icon: "map-pin", label: "지역", value: [live.region, live.district].filter(Boolean).join(" ") || "정보 없음" },
     { icon: "building", label: "용도", value: live.purpose || "정보 없음" },
     { icon: "gauge", label: "에너지 등급", value: live.gradeLabel || "정보 없음" },
@@ -56,8 +56,20 @@ function buildLiveBasisRows(live: LiveMatchInfo): BasisRow[] {
       label: "1차에너지소요량",
       value: live.energyValue === null ? "정보 없음" : `${formatNumber(live.energyValue)} ${PRIMARY_ENERGY_UNIT}`,
     },
-    { icon: "badge-check", label: "인증 구분", value: live.certKind || "인증 이력 없음" },
   ];
+
+  // 인증서 등급은 발급 당시 고시 기준입니다. 위에 보이는 등급은 현행 기준표로 다시
+  // 계산한 값이라 서로 다를 수 있고, 다를 때만 따로 적어 줍니다.
+  if (live.certGradeLabel && live.certGradeLabel !== live.gradeLabel) {
+    rows.push({
+      icon: "key",
+      label: "인증서 기재 등급",
+      value: `${live.certGradeLabel} (발급 당시 기준)`,
+    });
+  }
+
+  rows.push({ icon: "badge-check", label: "인증 구분", value: live.certKind || "인증 이력 없음" });
+  return rows;
 }
 
 /**
