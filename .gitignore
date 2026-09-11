@@ -6,3 +6,7 @@ node_modules/
 __pycashe__/
 
 .idea/
+
+.next/
+node_modules/
+.env*.local

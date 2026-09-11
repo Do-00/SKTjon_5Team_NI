@@ -1,0 +1,278 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  NO_DATA_COLOR,
+  colorOfRank,
+  fetchDistricts,
+  radiusOfSample,
+  type DistrictCoord,
+  type DistrictStat,
+} from "@/src/lib/district-scale";
+import { DistrictRanking } from "./DistrictRanking";
+
+/**
+ * ④ 동네 비교 지도.
+ *
+ * 카카오맵 위에 시군구마다 원을 하나씩 얹습니다. 색은 등급, 크기는 인증 건수입니다.
+ * 마커 이미지를 쓰지 않아 에셋이 필요 없고, 250개를 올려도 가볍습니다.
+ *
+ * 인증 사례가 부족한 동네는 지우지 않고 회색으로 남깁니다.
+ * 수도권은 촘촘하고 지방은 비어 있는 그림이 곧 이 서비스의 논점이기 때문입니다.
+ *
+ * 지도가 뜨지 않는 상황(키 없음·도메인 미등록·네트워크 차단)에서는
+ * 자동으로 순위 막대로 내려갑니다. 화면이 비는 일은 없습니다.
+ *
+ * 필요한 것
+ *   .env.local  →  NEXT_PUBLIC_KAKAO_MAP_KEY=카카오_JavaScript_키
+ *   카카오 개발자센터 > 앱 설정 > 플랫폼 > Web 에 http://localhost:3000 등록
+ */
+
+declare global {
+  interface Window {
+    kakao: any;
+  }
+}
+
+interface Props {
+  /** "서울" 처럼 시도명. 생략하면 전국. */
+  region?: string;
+  /** 강조할 동네. 예: "강서구" */
+  selected?: string;
+  /** "주거용" | "주거용 이외" | "전체". 생략하면 백엔드 기본값(주거용). */
+  purpose?: string;
+  minSample?: number;
+  coords: DistrictCoord[];
+  className?: string;
+}
+
+const SDK_ID = "kakao-maps-sdk";
+
+function loadKakaoSdk(appKey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject(new Error("서버에서는 실행되지 않습니다"));
+    if (window.kakao?.maps) return resolve();
+
+    const onReady = () => window.kakao.maps.load(() => resolve());
+    const existing = document.getElementById(SDK_ID) as HTMLScriptElement | null;
+
+    if (existing) {
+      existing.addEventListener("load", onReady, { once: true });
+      existing.addEventListener("error", () => reject(new Error("카카오 SDK 로드 실패")), { once: true });
+      return;
+    }
+
+    const s = document.createElement("script");
+    s.id = SDK_ID;
+    s.async = true;
+    // autoload=false 로 받아두고 kakao.maps.load 로 직접 초기화합니다.
+    s.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`;
+    s.onload = onReady;
+    s.onerror = () => reject(new Error("카카오 SDK 로드 실패"));
+    document.head.appendChild(s);
+  });
+}
+
+export function DistrictMap({
+  region,
+  selected,
+  purpose,
+  minSample = 5,
+  coords,
+  className,
+}: Props) {
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any>(null);
+  const overlaysRef = useRef<any[]>([]);
+
+  const [stats, setStats] = useState<DistrictStat[] | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const appKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+
+  /** 좌표와 통계를 시군구 이름으로 조인합니다. */
+  const joined = useMemo(() => {
+    if (!stats) return [];
+    const byKey = new Map(coords.map((c) => [c.key ?? `${c.region ?? ""} ${c.district}`.trim(), c]));
+    const byName = new Map(coords.map((c) => [c.district, c]));
+    return stats
+      .map((s) => {
+        const c = byKey.get(s.key) ?? byName.get(s.district);
+        return c ? { ...s, lat: c.lat, lng: c.lng } : null;
+      })
+      .filter((x): x is DistrictStat & { lat: number; lng: number } => x !== null);
+  }, [stats, coords]);
+
+  // 1. 데이터
+  useEffect(() => {
+    let alive = true;
+    fetchDistricts(region, purpose, minSample)
+      .then((d) => alive && setStats(d))
+      .catch((e) => alive && setError(e.message));
+    return () => {
+      alive = false;
+    };
+  }, [region, purpose, minSample]);
+
+  // 2. 지도 생성
+  useEffect(() => {
+    if (!appKey) {
+      setMapFailed(true);
+      return;
+    }
+    let alive = true;
+    loadKakaoSdk(appKey)
+      .then(() => {
+        if (!alive || !boxRef.current || mapRef.current) return;
+        mapRef.current = new window.kakao.maps.Map(boxRef.current, {
+          center: new window.kakao.maps.LatLng(36.4, 127.9),
+          level: region ? 9 : 13,
+        });
+      })
+      .catch(() => alive && setMapFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [appKey, region]);
+
+  // 3. 원 그리기
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || joined.length === 0) return;
+
+    overlaysRef.current.forEach((o) => o.setMap(null));
+    overlaysRef.current = [];
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+
+    // 표본이 부족한 동네를 먼저 그려서 뒤로 깔리게 합니다.
+    const ordered = [...joined].sort(
+      (a, b) => Number(b.insufficient) - Number(a.insufficient),
+    );
+
+    ordered.forEach((d) => {
+      const pos = new window.kakao.maps.LatLng(d.lat, d.lng);
+      bounds.extend(pos);
+
+      const isMine = selected != null && d.district === selected;
+      const size = d.insufficient ? 12 : radiusOfSample(d.sampleCount);
+
+      const el = document.createElement("div");
+      el.style.cssText = [
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "border-radius:9999px",
+        "font-size:11px",
+        "font-weight:700",
+        "color:#fff",
+        "cursor:pointer",
+        "user-select:none",
+        `width:${size}px`,
+        `height:${size}px`,
+        `background:${d.insufficient ? NO_DATA_COLOR : colorOfRank(d.gradeRank)}`,
+        `opacity:${d.insufficient ? 0.65 : isMine ? 1 : 0.82}`,
+        isMine
+          ? "border:3px solid #111;box-shadow:0 0 0 3px rgba(255,255,255,.95)"
+          : "border:1px solid rgba(255,255,255,.7)",
+        isMine ? "z-index:20" : d.insufficient ? "z-index:1" : "z-index:5",
+      ].join(";");
+
+      // 원이 작으면 글자가 안 들어갑니다. 표본 부족은 점으로만 둡니다.
+      if (!d.insufficient && size >= 22) el.textContent = d.gradeCode ?? "";
+
+      el.title = d.insufficient
+        ? `${d.region} ${d.district} · 인증 사례 부족 (${d.purpose} ${d.sampleCount}건)`
+        : `${d.region} ${d.district} · ${d.grade} · ${d.purpose} ${d.sampleCount}건 · ${d.rank}위`;
+
+      const overlay = new window.kakao.maps.CustomOverlay({
+        position: pos,
+        content: el,
+        yAnchor: 0.5,
+        xAnchor: 0.5,
+      });
+      overlay.setMap(map);
+      overlaysRef.current.push(overlay);
+    });
+
+    if (!bounds.isEmpty()) map.setBounds(bounds, 40, 40, 40, 40);
+  }, [joined, selected]);
+
+  // ── 화면 ────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <p className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-4 text-[15px] text-[var(--text-muted)]">
+        {error} — 백엔드가 8080에 떠 있는지 확인해주세요.
+      </p>
+    );
+  }
+
+  const missingCoords = stats !== null && joined.length === 0;
+  if (mapFailed || missingCoords) {
+    return (
+      <DistrictRanking
+        stats={stats ?? []}
+        selected={selected}
+        limit={15}
+        note={
+          missingCoords
+            ? "좌표 데이터가 없어 순위로 표시합니다."
+            : "지도를 불러오지 못해 순위로 표시합니다."
+        }
+        className={className}
+      />
+    );
+  }
+
+  const ranked = joined.filter((d) => !d.insufficient).length;
+  const gray = joined.length - ranked;
+
+  return (
+    <div className={className}>
+      <div
+        ref={boxRef}
+        className="h-[440px] w-full overflow-hidden rounded-[var(--radius-md)] border border-[var(--border-subtle)]"
+      />
+      <Legend ranked={ranked} gray={gray} />
+    </div>
+  );
+}
+
+function Legend({ ranked, gray }: { ranked: number; gray: number }) {
+  const steps = [
+    { code: "1+++", rank: 1 },
+    { code: "1+", rank: 3 },
+    { code: "1", rank: 4 },
+    { code: "2", rank: 5 },
+    { code: "3", rank: 6 },
+    { code: "5", rank: 8 },
+    { code: "7", rank: 10 },
+  ];
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[var(--text-muted)]">
+      <span className="flex items-center gap-2">
+        {steps.map((s) => (
+          <span key={s.code} className="flex items-center gap-1">
+            <span
+              aria-hidden
+              className="inline-block h-3 w-3 rounded-full"
+              style={{ background: colorOfRank(s.rank) }}
+            />
+            {s.code}
+          </span>
+        ))}
+      </span>
+      <span className="flex items-center gap-1">
+        <span
+          aria-hidden
+          className="inline-block h-2.5 w-2.5 rounded-full"
+          style={{ background: NO_DATA_COLOR }}
+        />
+        인증 사례 부족 {gray}곳
+      </span>
+      <span>원 크기는 인증 건수 · 비교 가능 {ranked}곳</span>
+    </div>
+  );
+}
