@@ -40,8 +40,8 @@ public class ReportController {
         out.put("gradeDistribution", group.getGradeDistribution());
         out.put("lowSample", group.isLowSample());
         // 아래는 추가 필드. 기존 필드는 그대로 둡니다.
-        out.put("gradeCode", toCode(group.getEstimatedGrade()));   // "1+등급" -> "1+"
-        out.put("primaryEnergyKwh", group.getMedianValue());
+        out.put("gradeCode", GradeTable.toCode(group.getEstimatedGrade()));  // "1+등급" -> "1+"
+        out.put("primaryEnergyKwh", group.getMedianValue());                 // 시뮬레이터의 baseEnergy
         out.put("groupKey", key);
         out.put("scopeLabel", label);
         return out;
@@ -60,11 +60,12 @@ public class ReportController {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("found", true);
         out.put("name", name);
+        out.put("region", info.getRegion());
         out.put("sampleCount", info.getCount());
         out.put("representativeGrade", info.getRepresentativeGrade());
         out.put("gradeDistribution", info.getGradeDistribution());
         out.put("lowSample", info.isLowSample());
-        out.put("gradeCode", toCode(info.getRepresentativeGrade()));
+        out.put("gradeCode", GradeTable.toCode(info.getRepresentativeGrade()));
         return out;
     }
 
@@ -85,19 +86,13 @@ public class ReportController {
         out.put("found", true);
         out.put("name", matched.getName() == null ? "" : matched.getName());
         out.put("grade", matched.getGrade());
-        out.put("gradeCode", toCode(matched.getGrade()));
+        out.put("gradeCode", GradeTable.toCode(matched.getGrade()));
         out.put("energyValue", matched.getEnergyValue());
+        out.put("primaryEnergyKwh", matched.getEnergyValue());   // 시뮬레이터의 baseEnergy
         out.put("purpose", matched.getPurpose());
         out.put("region", matched.getRegion());
         out.put("district", matched.getDistrict());
         out.put("certKind", matched.getCertKind() == null ? "" : matched.getCertKind());
         return out;
-    }
-
-    /** 화면 타입에 맞춘 등급 코드. "1+등급" -> "1+". 프론트가 변환 로직을 갖지 않도록 서버가 내보냅니다. */
-    private static String toCode(String label) {
-        if (label == null || label.isBlank()) return null;
-        if ("등급외".equals(label)) return "등급외"; // "외"만 남으면 의미가 사라지므로 원문 유지
-        return label.replace("등급", "").trim();
     }
 }
